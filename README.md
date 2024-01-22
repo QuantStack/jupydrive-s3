@@ -1,4 +1,4 @@
-# jupyter_drives_browser
+# jupyter-drives-browser
 
 [![Github Actions Status](https://github.com/QuantStack/jupyter-drives-browser/workflows/Build/badge.svg)](https://github.com/QuantStack/jupyter-drives-browser/actions/workflows/build.yml)
 A JupyterLab extension which enables client-side drives access.
