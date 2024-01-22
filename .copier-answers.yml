@@ -1,0 +1,20 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.2.4
+_src_path: https://github.com/jupyterlab/extension-template
+author_email: denisa.checiu@quantstack.net
+author_name: QuantStack
+data_format: string
+file_extension: ''
+has_binder: false
+has_settings: false
+kind: frontend
+labextension_name: jupyter-drives-browser
+mimetype: ''
+mimetype_name: ''
+project_short_description: A JupyterLab extension which enables client-side drives
+    access.
+python_name: jupyter_drives_browser
+repository: https://github.com/QuantStack/jupyter-drives-browser
+test: true
+viewer_name: ''
+
