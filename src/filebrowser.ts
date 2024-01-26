@@ -7,9 +7,16 @@ import {
 import {
   IDefaultFileBrowser,
   IFileBrowserFactory,
-  FileBrowser /*, Uploader*/
+  FileBrowser
 } from '@jupyterlab/filebrowser';
 import { IDocumentManager } from '@jupyterlab/docmanager';
+import {
+  createToolbarFactory,
+  IToolbarWidgetRegistry,
+  setToolbar
+} from '@jupyterlab/apputils';
+import { ISettingRegistry } from '@jupyterlab/settingregistry';
+import { ITranslator } from '@jupyterlab/translation';
 
 import { CommandRegistry } from '@lumino/commands';
 
@@ -17,9 +24,7 @@ import { Drive } from './contents';
 // import { DriveIcon } from './icons';
 
 import driveSvg from '../style/driveIconFileBrowser.svg';
-import {
-  folderIcon /* FilenameSearcher, IScore*/
-} from '@jupyterlab/ui-components';
+import { folderIcon } from '@jupyterlab/ui-components';
 
 /**
  * The command IDs used to the filebrowser plugin.
@@ -28,10 +33,9 @@ namespace CommandIDs {
   export const openPath = 'filebrowser:open-path';
 }
 
-/**
- * The class name added to the filebrowser filterbox node.
- */
-// const FILTERBOX_CLASS = 'jp-FileBrowser-filterBox';
+const FILE_BROWSER_FACTORY = 'FileBrowser';
+const FILE_BROWSER_PLUGIN_ID =
+  '@jupyter/jupyter-drives-browser:file-browser-toolbar';
 
 // create S3 drive for test purposes
 const test_drive = new Drive();
@@ -79,6 +83,65 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
     // add lines from browser widget plugin to define attributes
 
     return defaultBrowser;
+  }
+};
+
+export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
+  id: '@jupyter/jupyter-drives-browser:file-browser-toolbar',
+  description: 'The toolbar for the drives file browser',
+  requires: [IDefaultFileBrowser, IToolbarWidgetRegistry, ISettingRegistry],
+  autoStart: true,
+  activate: async (
+    app: JupyterFrontEnd,
+    fileBrowser: IDefaultFileBrowser,
+    toolbarRegistry: IToolbarWidgetRegistry,
+    settingsRegistry: ISettingRegistry,
+    translator: ITranslator,
+    fileBrowserCommands: null
+  ): Promise<void> => {
+    // const { commands } = app;
+    console.log('file-browser-toolbar pluging activated!');
+
+    // toolbarRegistry.addFactory(
+    //     FILE_BROWSER_FACTORY,
+    //     'uploaderTest',
+    //     (fileBrowser: FileBrowser) =>
+    //       new Uploader({ model: fileBrowser.model, translator })
+    //   );
+
+    // toolbarRegistry.addFactory(
+    //   FILE_BROWSER_FACTORY,
+    //   'fileNameSearcherTest',
+    //   (fileBrowser: FileBrowser) => {
+    //     const searcher = FilenameSearcher({
+    //       updateFilter: (
+    //         filterFn: (item: string) => Partial<IScore> | null,
+    //         query?: string
+    //       ) => {
+    //         fileBrowser.model.setFilter(value => {
+    //           return filterFn(value.name.toLowerCase());
+    //         });
+    //       },
+    //       useFuzzyFilter: true,
+    //       placeholder: 'Filter files by namesss',
+    //       forceRefresh: true
+    //     });
+    //     searcher.addClass(FILTERBOX_CLASS);
+    //     return searcher;
+    //   }
+    // );
+
+    // connect the filebrowser toolbar to the settings registry for the plugin
+    setToolbar(
+      fileBrowser,
+      createToolbarFactory(
+        toolbarRegistry,
+        settingsRegistry,
+        FILE_BROWSER_FACTORY,
+        FILE_BROWSER_PLUGIN_ID,
+        translator
+      )
+    );
   }
 };
 

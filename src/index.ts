@@ -3,7 +3,7 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 
-import { defaultFileBrowser } from './filebrowser';
+import { defaultFileBrowser, toolbarFileBrowser } from './filebrowser';
 
 /**
  * Initialization data for the jupyter-drives-browser extension.
@@ -23,7 +23,8 @@ const defaultPlugin: JupyterFrontEndPlugin<void> = {
  */
 const plugins: JupyterFrontEndPlugin<any>[] = [
   defaultFileBrowser,
-  defaultPlugin
+  defaultPlugin,
+  toolbarFileBrowser
 ];
 
 export default plugins;
