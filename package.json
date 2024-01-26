@@ -94,7 +94,10 @@
     },
     "jupyterlab": {
         "extension": true,
-        "outputDir": "jupyter_drives_browser/labextension"
+        "outputDir": "jupyter_drives_browser/labextension",
+        "disabledExtensions": [
+            "@jupyterlab/filebrowser-extension:default-file-browser"
+        ]
     },
     "eslintIgnore": [
         "node_modules",
