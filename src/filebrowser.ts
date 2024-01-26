@@ -34,8 +34,7 @@ namespace CommandIDs {
 }
 
 const FILE_BROWSER_FACTORY = 'FileBrowser';
-const FILE_BROWSER_PLUGIN_ID =
-  '@jupyter/jupyter-drives-browser:file-browser-toolbar';
+const FILE_BROWSER_PLUGIN_ID = 'jupyter-drives-browser:file-browser-toolbar';
 
 // create S3 drive for test purposes
 const test_drive = new Drive();
@@ -45,7 +44,7 @@ test_drive.name = 'S3TestDrive';
  * The default file browser factory provider.
  */
 export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
-  id: '@jupyter/drives-browser:default-file-browser',
+  id: 'drives-browser:default-file-browser',
   description: 'The default file browser factory provider',
   provides: IDefaultFileBrowser,
   requires: [IDocumentManager, IFileBrowserFactory],
@@ -87,7 +86,7 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
 };
 
 export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
-  id: '@jupyter/jupyter-drives-browser:file-browser-toolbar',
+  id: 'jupyter-drives-browser:file-browser-toolbar',
   description: 'The toolbar for the drives file browser',
   requires: [IDefaultFileBrowser, IToolbarWidgetRegistry, ISettingRegistry],
   autoStart: true,
