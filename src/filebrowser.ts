@@ -9,7 +9,7 @@ import {
   IFileBrowserFactory,
   FileBrowser
 } from '@jupyterlab/filebrowser';
-import { IDocumentManager } from '@jupyterlab/docmanager';
+// import { IDocumentManager } from '@jupyterlab/docmanager';
 import {
   createToolbarFactory,
   IToolbarWidgetRegistry,
@@ -44,10 +44,10 @@ test_drive.name = 'S3TestDrive';
  * The default file browser factory provider.
  */
 export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
-  id: 'drives-browser:default-file-browser',
+  id: 'jupyter-drives-browser:default-file-browser',
   description: 'The default file browser factory provider',
   provides: IDefaultFileBrowser,
-  requires: [IDocumentManager, IFileBrowserFactory],
+  requires: [IFileBrowserFactory],
   optional: [IRouter, JupyterFrontEnd.ITreeResolver, ILabShell],
   activate: async (
     app: JupyterFrontEnd,

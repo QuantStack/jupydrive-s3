@@ -13,7 +13,7 @@
   "title": "@jupyter/drives-browser:file-browser-toolbar",
   "description": "jupyter-drives-browser settings.",
   "type": "object",
-  "jupyter.lab.transform": false,
+  "jupyter.lab.transform": true,
   "properties": {},
   "additionalProperties": false,
   "definitions": {
