@@ -1,18 +1,19 @@
 {
   "jupyter.lab.toolbars": {
-    "FileBrowser": [
+    "DriveBrowser": [
       {
         "name": "new-directory",
-        "disabled": true
+        "command": "filebrowser:create-new-directory",
+        "rank": 10
       },
-      { "name": "uploader", "disabled": true },
-      { "name": "fileNameSearcher", "disabled": true }
+      { "name": "uploader", "rank": 20 },
+      { "name": "refresh", "command": "filebrowser:refresh", "rank": 30 }
     ]
   },
-  "title": "'@jupyter/drives-browser:file-browser-toolbar",
+  "title": "@jupyter/drives-browser:file-browser-toolbar",
   "description": "jupyter-drives-browser settings.",
   "type": "object",
-  "jupyter.lab.transform": true,
+  "jupyter.lab.transform": false,
   "properties": {},
   "additionalProperties": false,
   "definitions": {

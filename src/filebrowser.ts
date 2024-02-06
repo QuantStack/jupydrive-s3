@@ -33,7 +33,7 @@ namespace CommandIDs {
   export const openPath = 'filebrowser:open-path';
 }
 
-const FILE_BROWSER_FACTORY = 'FileBrowser';
+const FILE_BROWSER_FACTORY = 'DriveBrowser';
 const FILE_BROWSER_PLUGIN_ID = 'jupyter-drives-browser:file-browser-toolbar';
 
 // create S3 drive for test purposes
@@ -51,7 +51,6 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   optional: [IRouter, JupyterFrontEnd.ITreeResolver, ILabShell],
   activate: async (
     app: JupyterFrontEnd,
-    drive: Drive,
     fileBrowserFactory: IFileBrowserFactory,
     router: IRouter | null,
     tree: JupyterFrontEnd.ITreeResolver | null,
@@ -63,11 +62,12 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
     app.serviceManager.contents.addDrive(test_drive);
 
     // Manually restore and load the default file browser.
-    const defaultBrowser = fileBrowserFactory.createFileBrowser('filebrowser', {
+    const defaultBrowser = fileBrowserFactory.createFileBrowser('drivebrowser', {
       auto: false,
       restore: false,
-      driveName: drive.name
+      driveName: test_drive.name
     });
+
     void Private.restoreBrowser(
       defaultBrowser,
       commands,
@@ -88,15 +88,14 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
 export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
   id: 'jupyter-drives-browser:file-browser-toolbar',
   description: 'The toolbar for the drives file browser',
-  requires: [IDefaultFileBrowser, IToolbarWidgetRegistry, ISettingRegistry],
+  requires: [IDefaultFileBrowser, IToolbarWidgetRegistry, ISettingRegistry, ITranslator],
   autoStart: true,
   activate: async (
     app: JupyterFrontEnd,
     fileBrowser: IDefaultFileBrowser,
     toolbarRegistry: IToolbarWidgetRegistry,
     settingsRegistry: ISettingRegistry,
-    translator: ITranslator,
-    fileBrowserCommands: null
+    translator: ITranslator
   ): Promise<void> => {
     // const { commands } = app;
     console.log('file-browser-toolbar pluging activated!');
