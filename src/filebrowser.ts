@@ -8,8 +8,9 @@ import {
   IDefaultFileBrowser,
   IFileBrowserFactory,
   FileBrowser
+  // Uploader
 } from '@jupyterlab/filebrowser';
-// import { IDocumentManager } from '@jupyterlab/docmanager';
+
 import {
   createToolbarFactory,
   IToolbarWidgetRegistry,
@@ -62,11 +63,14 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
     app.serviceManager.contents.addDrive(test_drive);
 
     // Manually restore and load the default file browser.
-    const defaultBrowser = fileBrowserFactory.createFileBrowser('drivebrowser', {
-      auto: false,
-      restore: false,
-      driveName: test_drive.name
-    });
+    const defaultBrowser = fileBrowserFactory.createFileBrowser(
+      'drivebrowser',
+      {
+        auto: false,
+        restore: false,
+        driveName: test_drive.name
+      }
+    );
 
     void Private.restoreBrowser(
       defaultBrowser,
@@ -88,7 +92,12 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
 export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
   id: 'jupyter-drives-browser:file-browser-toolbar',
   description: 'The toolbar for the drives file browser',
-  requires: [IDefaultFileBrowser, IToolbarWidgetRegistry, ISettingRegistry, ITranslator],
+  requires: [
+    IDefaultFileBrowser,
+    IToolbarWidgetRegistry,
+    ISettingRegistry,
+    ITranslator
+  ],
   autoStart: true,
   activate: async (
     app: JupyterFrontEnd,

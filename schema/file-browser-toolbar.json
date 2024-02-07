@@ -10,11 +10,20 @@
       { "name": "refresh", "command": "filebrowser:refresh", "rank": 30 }
     ]
   },
-  "title": "@jupyter/drives-browser:file-browser-toolbar",
+  "title": "jupyter-drives-browser:file-browser-toolbar",
   "description": "jupyter-drives-browser settings.",
   "type": "object",
   "jupyter.lab.transform": true,
-  "properties": {},
+  "properties": {
+    "toolbar": {
+      "title": "Drive browser toolbar items",
+      "items": {
+        "$ref": "#/definitions/toolbarItem"
+      },
+      "type": "array",
+      "default": []
+    }
+  },
   "additionalProperties": false,
   "definitions": {
     "toolbarItem": {
