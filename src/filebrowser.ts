@@ -8,7 +8,6 @@ import {
   IDefaultFileBrowser,
   IFileBrowserFactory,
   FileBrowser
-  // Uploader
 } from '@jupyterlab/filebrowser';
 
 import {
@@ -22,7 +21,6 @@ import { ITranslator } from '@jupyterlab/translation';
 import { CommandRegistry } from '@lumino/commands';
 
 import { Drive } from './contents';
-// import { DriveIcon } from './icons';
 
 import driveSvg from '../style/driveIconFileBrowser.svg';
 import { folderIcon } from '@jupyterlab/ui-components';
@@ -106,37 +104,9 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
     settingsRegistry: ISettingRegistry,
     translator: ITranslator
   ): Promise<void> => {
-    // const { commands } = app;
-    console.log('file-browser-toolbar pluging activated!');
-
-    // toolbarRegistry.addFactory(
-    //     FILE_BROWSER_FACTORY,
-    //     'uploaderTest',
-    //     (fileBrowser: FileBrowser) =>
-    //       new Uploader({ model: fileBrowser.model, translator })
-    //   );
-
-    // toolbarRegistry.addFactory(
-    //   FILE_BROWSER_FACTORY,
-    //   'fileNameSearcherTest',
-    //   (fileBrowser: FileBrowser) => {
-    //     const searcher = FilenameSearcher({
-    //       updateFilter: (
-    //         filterFn: (item: string) => Partial<IScore> | null,
-    //         query?: string
-    //       ) => {
-    //         fileBrowser.model.setFilter(value => {
-    //           return filterFn(value.name.toLowerCase());
-    //         });
-    //       },
-    //       useFuzzyFilter: true,
-    //       placeholder: 'Filter files by namesss',
-    //       forceRefresh: true
-    //     });
-    //     searcher.addClass(FILTERBOX_CLASS);
-    //     return searcher;
-    //   }
-    // );
+    console.log(
+      'jupyter-drives-browser:file-browser-toolbar pluging activated!'
+    );
 
     // connect the filebrowser toolbar to the settings registry for the plugin
     setToolbar(
