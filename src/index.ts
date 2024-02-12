@@ -3,10 +3,12 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 
+import { defaultFileBrowser, toolbarFileBrowser } from './filebrowser';
+
 /**
  * Initialization data for the jupyter-drives-browser extension.
  */
-const plugin: JupyterFrontEndPlugin<void> = {
+const defaultPlugin: JupyterFrontEndPlugin<void> = {
   id: 'jupyter-drives-browser:plugin',
   description:
     'A JupyterLab extension which enables client-side drives access.',
@@ -16,4 +18,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
   }
 };
 
-export default plugin;
+/**
+ * Export the plugins as default.
+ */
+const plugins: JupyterFrontEndPlugin<any>[] = [
+  defaultFileBrowser,
+  defaultPlugin,
+  toolbarFileBrowser
+];
+
+export default plugins;
