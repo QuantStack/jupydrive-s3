@@ -1,3 +1,9 @@
+/*
+ The contents will be later modified, it now exists in this form 
+ for testing purposes.
+ Extracted from the jupyter-drives project.
+ */
+
 import { Signal, ISignal } from '@lumino/signaling';
 import { Contents, ServerConnection } from '@jupyterlab/services';
 
