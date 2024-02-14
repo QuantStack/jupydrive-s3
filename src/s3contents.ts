@@ -1,11 +1,187 @@
-/*
- The contents will be later modified, it now exists in this form 
- for testing purposes.
- Extracted from the jupyter-drives project.
- */
-
 import { Signal, ISignal } from '@lumino/signaling';
 import { Contents, ServerConnection } from '@jupyterlab/services';
+
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  S3Client,
+  PutBucketCorsCommand,
+  PutObjectCommand,
+  ListObjectsV2Command,
+  ListBucketsCommand
+} from '@aws-sdk/client-s3';
+
+/**
+ * Setting up the S3 client using the user credentials.
+ *
+ * When no region or credentials are provided, the SDK will use the
+ * region and credentials from the local AWS config.
+ */
+const client = new S3Client({
+  region: 'eu-north-1',
+  credentials: {
+    accessKeyId: '',
+    secretAccessKey: ''
+  }
+});
+
+/**
+ * Set the CORS rules for a bucket such that the HTTP requests
+ * within the extension are permitted.
+ *
+ * @param bucketName name of bucket
+ */
+export const setBucketCors = async (bucketName: string) => {
+  const command = new PutBucketCorsCommand({
+    Bucket: bucketName,
+    CORSConfiguration: {
+      CORSRules: [
+        {
+          AllowedHeaders: ['*'],
+          AllowedMethods: ['GET', 'PUT', 'DELETE'],
+          // Allow only requests from the specified origin.
+          AllowedOrigins: ['*'], // ! Test purposes only !
+          // Allow the entity tag (ETag) header to be returned in the response. The ETag header
+          // The entity tag represents a specific version of the object. The ETag reflects
+          // changes only to the contents of an object, not its metadata.
+          ExposeHeaders: ['ETag'],
+          // How long the requesting browser should cache the preflight response. After
+          // this time, the preflight request will have to be made again.
+          MaxAgeSeconds: 3600
+        }
+      ]
+    }
+  });
+
+  try {
+    const response = await client.send(command);
+    console.log(response);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+/**
+ * List all buckets the credentials give access to.
+ */
+export const listBuckets = async () => {
+  const command = new ListBucketsCommand({});
+
+  const { Buckets } = await client.send(command);
+  console.log('Buckets: ');
+  if (Buckets) {
+    console.log(Buckets.map(bucket => bucket.Name).join('\n'));
+  }
+  return Buckets;
+};
+
+/**
+ * List all contents of a bucket.
+ *
+ * @param bucketName name of bucket
+ */
+export const listBucketContents = async (bucketName: string) => {
+  const command = new ListObjectsV2Command({
+    Bucket: bucketName
+  });
+
+  try {
+    let isTruncated: boolean | undefined = true;
+    let contentsList = '';
+
+    while (isTruncated) {
+      const { Contents, IsTruncated, NextContinuationToken } =
+        await client.send(command);
+
+      console.log('Contents of bucket ', bucketName, ' :', Contents);
+
+      if (Contents) {
+        const contents = Contents.map(c => `${c.Key}`).join('\n');
+        contentsList += contents + '\n';
+      }
+      if (isTruncated) {
+        isTruncated = IsTruncated;
+      }
+      command.input.ContinuationToken = NextContinuationToken;
+    }
+
+    console.log('List of contents:\n', contentsList);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+/**
+ * Get contents of a specified file within a bucket.
+ *
+ * @param bucketName name of bucket
+ * @param fileName name of file to retrieve contents of
+ */
+export const getFileContents = async (bucketName: string, fileName: string) => {
+  const command = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: fileName
+  });
+
+  try {
+    const response = await client.send(command);
+
+    if (response) {
+      const fileContents = await response.Body!.transformToString();
+      console.log('File Contents: ', fileContents);
+    }
+
+    console.log('File ', fileName, ': ', response);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+/**
+ * Uploading a file to a bucket.
+ *
+ * @param bucketName name of bucket
+ * @param file name of file including its type extension (e.g.: test_file.txt)
+ * @param body blob containing contents of file
+ */
+export const uploadFile = async (
+  bucketName: string,
+  file: string,
+  body: string
+) => {
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: file,
+    Body: body
+  });
+
+  try {
+    const response = await client.send(command);
+    console.log(response);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+/**
+ * Delete a specified file from a bucket.
+ *
+ * @param bucketName name of bucket
+ * @param file name of file including its type extension (e.g.: test_file.txt)
+ */
+export const deleteFile = async (bucketName: string, file: string) => {
+  const command = new DeleteObjectCommand({
+    Bucket: bucketName,
+    Key: file
+  });
+
+  try {
+    const response = await client.send(command);
+    console.log(response);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
 let data: Contents.IModel = {
   name: '',

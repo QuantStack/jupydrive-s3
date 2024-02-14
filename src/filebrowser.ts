@@ -20,7 +20,7 @@ import { ITranslator } from '@jupyterlab/translation';
 
 import { CommandRegistry } from '@lumino/commands';
 
-import { Drive } from './contents';
+import { Drive } from './s3contents';
 
 import driveSvg from '../style/driveIconFileBrowser.svg';
 import { folderIcon } from '@jupyterlab/ui-components';
