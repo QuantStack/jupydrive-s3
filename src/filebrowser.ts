@@ -36,8 +36,9 @@ const FILE_BROWSER_FACTORY = 'DriveBrowser';
 const FILE_BROWSER_PLUGIN_ID = 'jupyter-drives-browser:file-browser-toolbar';
 
 // create S3 drive for test purposes
-const test_drive = new Drive();
-test_drive.name = 'S3TestDrive';
+const test_drive = new Drive({
+  name: 'jupyter-drives-test-bucket-1'
+});
 
 /**
  * The default file browser factory provider.

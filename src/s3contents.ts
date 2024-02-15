@@ -1,5 +1,6 @@
 import { Signal, ISignal } from '@lumino/signaling';
 import { Contents, ServerConnection } from '@jupyterlab/services';
+import { URLExt } from '@jupyterlab/coreutils';
 
 import {
   DeleteObjectCommand,
@@ -40,7 +41,7 @@ export const setBucketCORS = async (bucketName: string) => {
       CORSRules: [
         {
           AllowedHeaders: ['*'],
-          AllowedMethods: ['GET', 'PUT', 'DELETE'],
+          AllowedMethods: ['GET', 'PUT', 'DELETE', 'HEAD'],
           // Allow only requests from the specified origin.
           AllowedOrigins: ['http://localhost:*'],
           // Allow the entity tag (ETag) header to be returned in the response. The ETag header
@@ -139,6 +140,7 @@ export const listBucketContents = async (bucketName: string) => {
   try {
     let isTruncated: boolean | undefined = true;
     let contentsList = '';
+    const content: IFileContent[] = [];
 
     while (isTruncated) {
       const { Contents, IsTruncated, NextContinuationToken } =
@@ -147,6 +149,29 @@ export const listBucketContents = async (bucketName: string) => {
       console.log('Contents of bucket ', bucketName, ' :', Contents);
 
       if (Contents) {
+        Contents.forEach(c => {
+          const fileExtension = c.Key!.split('.')[1];
+
+          content.push({
+            name: c.Key!,
+            path: URLExt.join(bucketName, c.Key!),
+            last_modified: c.LastModified!,
+            created: null,
+            content: null,
+            format: null,
+            mimetype: fileExtension === 'txt' ? 'text/plain' : null,
+            size: c.Size!,
+            writable: true,
+            type:
+              fileExtension === 'txt'
+                ? 'txt'
+                : fileExtension === 'ipynb'
+                  ? 'notebook'
+                  : 'file' // when is it directory
+          });
+
+          console.log(content);
+        });
         const contents = Contents.map(c => `${c.Key}`).join('\n');
         contentsList += contents + '\n';
       }
@@ -246,6 +271,19 @@ let data: Contents.IModel = {
   writable: true,
   type: ''
 };
+
+interface IFileContent {
+  name: string;
+  path: string;
+  last_modified: Date;
+  created: Date | null;
+  content: string | null;
+  format: string | null;
+  mimetype: string | null;
+  size: number;
+  writable: boolean;
+  type: string;
+}
 
 const drive1Contents: Contents.IModel = {
   name: 'Drive1',
@@ -388,10 +426,46 @@ export class Drive implements Contents.IDrive {
    *
    * @param options - The options used to initialize the object.
    */
-  constructor(options: Drive.IOptions = {}) {
+  constructor(options: Drive.IOptions) {
     this._serverSettings = ServerConnection.makeSettings();
     //this._apiEndpoint = options.apiEndpoint ?? SERVICE_DRIVE_URL;
+
+    this._s3Client = new S3Client({
+      region: 'eu-north-1',
+      credentials: {
+        accessKeyId: '',
+        secretAccessKey: ''
+      }
+    });
+
+    this._name = options.name;
+    this._baseUrl = URLExt.join('https://s3.amazonaws.com/', this._name);
+    this._provider = 'S3';
+    this._status = 'active';
+
+    getBucketRegion(this._name)
+      .then((region: string | undefined) => {
+        this._region = region!;
+      })
+      .catch((error: any) => {
+        console.error(error);
+      });
   }
+
+  /**
+   * The Drive S3 client
+   */
+  get s3Client(): S3Client {
+    return this._s3Client;
+  }
+
+  /**
+   * The Drive S3 client
+   */
+  set s3Client(s3Client: S3Client) {
+    this._s3Client = new S3Client({});
+  }
+
   /**
    * The Drive base URL
    */
@@ -560,8 +634,65 @@ export class Drive implements Contents.IDrive {
     }
     const data = await response.json();*/
 
-    const data = drive1Contents;
-    //Contents.validateContentsModel(data);
+    // const data = drive1Contents;
+    // Contents.validateContentsModel(data);
+    // return data;
+
+    const content: IFileContent[] = [];
+
+    const command = new ListObjectsV2Command({
+      Bucket: this._name
+    });
+
+    let isTruncated: boolean | undefined = true;
+
+    while (isTruncated) {
+      const { Contents, IsTruncated, NextContinuationToken } =
+        await client.send(command);
+
+      if (Contents) {
+        if (Contents) {
+          Contents.forEach(c => {
+            const fileExtension = c.Key!.split('.')[1];
+
+            content.push({
+              name: c.Key!,
+              path: URLExt.join(this._name, c.Key!),
+              last_modified: c.LastModified!,
+              created: null,
+              content: null,
+              format: null,
+              mimetype: fileExtension === 'txt' ? 'text/plain' : null,
+              size: c.Size!,
+              writable: true,
+              type:
+                fileExtension === 'txt'
+                  ? 'txt'
+                  : fileExtension === 'ipynb'
+                    ? 'notebook'
+                    : 'file' // when is it directory
+            });
+          });
+        }
+      }
+      if (isTruncated) {
+        isTruncated = IsTruncated;
+      }
+      command.input.ContinuationToken = NextContinuationToken;
+    }
+
+    data = {
+      name: this._name,
+      path: this._baseUrl,
+      last_modified: '',
+      created: '',
+      content: content,
+      format: 'json',
+      mimetype: '',
+      size: undefined,
+      writable: true,
+      type: 'directory'
+    };
     return data;
   }
 
@@ -992,6 +1123,7 @@ export class Drive implements Contents.IDrive {
 
   // private _apiEndpoint: string;
   private _serverSettings: ServerConnection.ISettings;
+  private _s3Client: S3Client;
   private _name: string = '';
   private _provider: string = '';
   private _baseUrl: string = '';
@@ -1012,7 +1144,7 @@ export namespace Drive {
      * The name for the `Drive`, which is used in file
      * paths to disambiguate it from other drives.
      */
-    name?: string;
+    name: string;
 
     /**
      * The server settings for the server.
@@ -1027,17 +1159,3 @@ export namespace Drive {
     apiEndpoint?: string;
   }
 }
-
-/*namespace Private {
-  /**
-   * Normalize a file extension to be of the type `'.foo'`.
-   *
-   * Adds a leading dot if not present and converts to lower case.
-   */
-/*export function normalizeExtension(extension: string): string {
-    if (extension.length > 0 && extension.indexOf('.') !== 0) {
-      extension = `.${extension}`;
-    }
-    return extension;
-  }
-}*/
