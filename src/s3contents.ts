@@ -4,6 +4,8 @@ import { Contents, ServerConnection } from '@jupyterlab/services';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  GetBucketLocationCommand,
+  HeadBucketCommand,
   S3Client,
   PutBucketCorsCommand,
   PutObjectCommand,
@@ -56,6 +58,55 @@ export const setBucketCORS = async (bucketName: string) => {
   try {
     const response = await client.send(command);
     console.log(response);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+/**
+ * Determine if already bucket exists.
+ * @param bucketName name of bucket
+ */
+export const isBucket = async (bucketName: string) => {
+  const command = new HeadBucketCommand({
+    Bucket: bucketName
+  });
+
+  try {
+    const response = await client.send(command);
+    if (response.$metadata.httpStatusCode === 200) {
+      console.log(
+        'Bucket exists and user can access it - bucket: ',
+        bucketName
+      );
+    } else {
+      console.log(
+        "Bucket doesn't exist or user doesn't have access to it - bucket: ",
+        bucketName
+      );
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+/**
+ * Get bucket region.
+ * @param bucketName name of bucket
+ * @returns
+ */
+export const getBucketRegion = async (bucketName: string) => {
+  const command = new GetBucketLocationCommand({
+    Bucket: bucketName
+  });
+
+  try {
+    let region = '';
+    const response = await client.send(command);
+    region = response?.LocationConstraint as string;
+    console.log(region);
+
+    return region;
   } catch (err) {
     console.error(err);
   }
