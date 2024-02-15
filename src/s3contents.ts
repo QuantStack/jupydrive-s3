@@ -31,7 +31,7 @@ const client = new S3Client({
  *
  * @param bucketName name of bucket
  */
-export const setBucketCors = async (bucketName: string) => {
+export const setBucketCORS = async (bucketName: string) => {
   const command = new PutBucketCorsCommand({
     Bucket: bucketName,
     CORSConfiguration: {
@@ -40,7 +40,7 @@ export const setBucketCors = async (bucketName: string) => {
           AllowedHeaders: ['*'],
           AllowedMethods: ['GET', 'PUT', 'DELETE'],
           // Allow only requests from the specified origin.
-          AllowedOrigins: ['*'], // ! Test purposes only !
+          AllowedOrigins: ['http://localhost:*'],
           // Allow the entity tag (ETag) header to be returned in the response. The ETag header
           // The entity tag represents a specific version of the object. The ETag reflects
           // changes only to the contents of an object, not its metadata.
