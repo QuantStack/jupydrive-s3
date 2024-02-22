@@ -177,7 +177,7 @@ export class Drive implements Contents.IDrive {
     this._provider = 'S3';
     this._status = 'active';
 
-    getBucketRegion(this._name)
+    getBucketRegion(this._s3Client, this._name)
       .then((region: string | undefined) => {
         this._region = region!;
       })
@@ -427,6 +427,7 @@ export class Drive implements Contents.IDrive {
       writable: true,
       type: 'directory'
     };
+
     return data;
   }
 

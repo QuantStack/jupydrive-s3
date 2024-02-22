@@ -21,10 +21,15 @@ import {
 const client = new S3Client({
   region: process.env.AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID ? process.env.AWS_ACCESS_KEY_ID : '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ? process.env.AWS_SECRET_ACCESS_KEY : ''
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID
+      ? process.env.AWS_ACCESS_KEY_ID
+      : '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      ? process.env.AWS_SECRET_ACCESS_KEY
+      : ''
   }
 });
+console.log(client);
 
 /**
  * Set the CORS rules for a bucket such that the HTTP requests
@@ -32,7 +37,7 @@ const client = new S3Client({
  *
  * @param bucketName name of bucket
  */
-export const setBucketCORS = async (bucketName: string) => {
+export const setBucketCORS = async (client: S3Client, bucketName: string) => {
   const command = new PutBucketCorsCommand({
     Bucket: bucketName,
     CORSConfiguration: {
@@ -66,7 +71,7 @@ export const setBucketCORS = async (bucketName: string) => {
  * Determine if already bucket exists.
  * @param bucketName name of bucket
  */
-export const isBucket = async (bucketName: string) => {
+export const isBucket = async (client: S3Client, bucketName: string) => {
   const command = new HeadBucketCommand({
     Bucket: bucketName
   });
@@ -94,7 +99,7 @@ export const isBucket = async (bucketName: string) => {
  * @param bucketName name of bucket
  * @returns
  */
-export const getBucketRegion = async (bucketName: string) => {
+export const getBucketRegion = async (client: S3Client, bucketName: string) => {
   const command = new GetBucketLocationCommand({
     Bucket: bucketName
   });
@@ -114,7 +119,7 @@ export const getBucketRegion = async (bucketName: string) => {
 /**
  * List all buckets the credentials give access to.
  */
-export const listBuckets = async () => {
+export const listBuckets = async (client: S3Client) => {
   const command = new ListBucketsCommand({});
 
   const { Buckets } = await client.send(command);
@@ -130,7 +135,10 @@ export const listBuckets = async () => {
  *
  * @param bucketName name of bucket
  */
-export const listBucketContents = async (bucketName: string) => {
+export const listBucketContents = async (
+  client: S3Client,
+  bucketName: string
+) => {
   const command = new ListObjectsV2Command({
     Bucket: bucketName
   });
@@ -191,7 +199,11 @@ export const listBucketContents = async (bucketName: string) => {
  * @param bucketName name of bucket
  * @param fileName name of file to retrieve contents of
  */
-export const getFileContents = async (bucketName: string, fileName: string) => {
+export const getFileContents = async (
+  client: S3Client,
+  bucketName: string,
+  fileName: string
+) => {
   const command = new GetObjectCommand({
     Bucket: bucketName,
     Key: fileName
@@ -219,6 +231,7 @@ export const getFileContents = async (bucketName: string, fileName: string) => {
  * @param body blob containing contents of file
  */
 export const uploadFile = async (
+  client: S3Client,
   bucketName: string,
   file: string,
   body: string
@@ -243,7 +256,11 @@ export const uploadFile = async (
  * @param bucketName name of bucket
  * @param file name of file including its type extension (e.g.: test_file.txt)
  */
-export const deleteFile = async (bucketName: string, file: string) => {
+export const deleteFile = async (
+  client: S3Client,
+  bucketName: string,
+  file: string
+) => {
   const command = new DeleteObjectCommand({
     Bucket: bucketName,
     Key: file
