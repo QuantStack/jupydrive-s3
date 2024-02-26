@@ -3,6 +3,7 @@ import { Contents, ServerConnection } from '@jupyterlab/services';
 import { URLExt } from '@jupyterlab/coreutils';
 
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   S3Client,
   ListObjectsV2Command,
@@ -634,46 +635,32 @@ export class Drive implements Contents.IDrive {
     return name;
   }
 
-  /**
+ /**
    * Delete a file.
    *
    * @param path - The path to the file.
    *
    * @returns A promise which resolves when the file is deleted.
    */
-  /*delete(path: string): Promise<void> {
-    return Promise.reject('Repository is read only');
-  }*/
+ async delete(localPath: string): Promise<void> {
+  console.log('DELETE, local path: ', localPath);
+  const fileName = localPath.split('/')[1];
+  console.log('DELETE, filename: ', fileName);
 
-  async delete(localPath: string): Promise<void> {
-    /*const url = this._getUrl(localPath);
-    const settings = this.serverSettings;
-    const init = { method: 'DELETE' };
-    const response = await ServerConnection.makeRequest(url, init, settings);
-    // TODO: update IPEP27 to specify errors more precisely, so
-    // that error types can be detected here with certainty.
-    if (response.status !== 204) {
-      const err = await ServerConnection.ResponseError.create(response);
-      throw err;
-    }*/
+  const response = await this.s3Client.send(
+    new DeleteObjectCommand({
+      Bucket: this._name,
+      Key: fileName
+    })
+  );
+  console.log('DELETE, response: ', response);
 
-    const content: Array<Contents.IModel> = drive1Contents.content;
-
-    content.forEach(item => {
-      if (item.path === localPath) {
-        const index = content.indexOf(item);
-        if (index !== -1) {
-          content.splice(index, 1);
-        }
-      }
-    });
-
-    this._fileChanged.emit({
-      type: 'delete',
-      oldValue: { path: localPath },
-      newValue: null
-    });
-  }
+  this._fileChanged.emit({
+    type: 'delete',
+    oldValue: { path: localPath },
+    newValue: { path: undefined }
+  });
+}
 
   /**
    * Rename a file or directory.
