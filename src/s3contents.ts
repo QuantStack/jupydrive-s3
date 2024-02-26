@@ -325,7 +325,7 @@ export class Drive implements Contents.IDrive {
   async newUntitled(
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    let body = '{}';
+    const body = '{}';
 
     // get current list of contents of drive
     const content: IFileContent[] = [];
