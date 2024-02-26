@@ -2,7 +2,11 @@ import { Signal, ISignal } from '@lumino/signaling';
 import { Contents, ServerConnection } from '@jupyterlab/services';
 import { URLExt } from '@jupyterlab/coreutils';
 
-import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  S3Client,
+  ListObjectsV2Command
+} from '@aws-sdk/client-s3';
 
 import { getBucketRegion, IFileContent } from './s3';
 
@@ -341,86 +345,105 @@ export class Drive implements Contents.IDrive {
     path: string,
     options?: Contents.IFetchOptions
   ): Promise<Contents.IModel> {
-    /*
-    let url = this._getUrl(localPath);
-    if (options) {
-      // The notebook type cannot take an format option.
-      if (options.type === 'notebook') {
-        delete options['format'];
-      }
-      const content = options.content ? '1' : '0';
-      const params: PartialJSONObject = { ...options, content };
-      url += URLExt.objectToQueryString(params);
-    }
+    console.log('path: ', path);
 
-    const settings = this.serverSettings;
-    const response = await ServerConnection.makeRequest(url, {}, settings);
-    if (response.status !== 200) {
-      const err = await ServerConnection.ResponseError.create(response);
-      throw err;
-    }
-    const data = await response.json();*/
+    // check if we are getting the list of files from the drive
+    if (!path) {
+      const content: IFileContent[] = [];
 
-    // const data = drive1Contents;
-    // Contents.validateContentsModel(data);
-    // return data;
+      const command = new ListObjectsV2Command({
+        Bucket: this._name
+      });
 
-    const content: IFileContent[] = [];
+      let isTruncated: boolean | undefined = true;
 
-    const command = new ListObjectsV2Command({
-      Bucket: this._name
-    });
+      while (isTruncated) {
+        const { Contents, IsTruncated, NextContinuationToken } =
+          await this._s3Client.send(command);
 
-    let isTruncated: boolean | undefined = true;
-
-    while (isTruncated) {
-      const { Contents, IsTruncated, NextContinuationToken } =
-        await this._s3Client.send(command);
-
-      if (Contents) {
         if (Contents) {
-          Contents.forEach(c => {
-            const fileExtension = c.Key!.split('.')[1];
+          if (Contents) {
+            Contents.forEach(c => {
+              const fileExtension = c.Key!.split('.')[1];
 
-            content.push({
-              name: c.Key!,
-              path: URLExt.join(this._name, c.Key!),
-              last_modified: c.LastModified!,
-              created: null,
-              content: null,
-              format: null,
-              mimetype: fileExtension === 'txt' ? 'text/plain' : null,
-              size: c.Size!,
-              writable: true,
-              type:
-                fileExtension === 'txt'
-                  ? 'txt'
-                  : fileExtension === 'ipynb'
-                    ? 'notebook'
-                    : 'file' // when is it directory
+              content.push({
+                name: c.Key!,
+                path: URLExt.join(this._name, c.Key!),
+                last_modified: c.LastModified!,
+                created: null,
+                content: null,
+                format: null,
+                mimetype: fileExtension === 'txt' ? 'text/plain' : null,
+                size: c.Size!,
+                writable: true,
+                type:
+                  fileExtension === 'txt'
+                    ? 'txt'
+                    : fileExtension === 'ipynb'
+                      ? 'notebook'
+                      : 'file' // when is it directory
+              });
             });
-          });
+          }
         }
+        if (isTruncated) {
+          isTruncated = IsTruncated;
+        }
+        command.input.ContinuationToken = NextContinuationToken;
       }
-      if (isTruncated) {
-        isTruncated = IsTruncated;
-      }
-      command.input.ContinuationToken = NextContinuationToken;
+
+      data = {
+        name: this._name,
+        path: this._name,
+        last_modified: '',
+        created: '',
+        content: content,
+        format: 'json',
+        mimetype: '',
+        size: undefined,
+        writable: true,
+        type: 'directory'
+      };
     }
 
-    data = {
-      name: this._name,
-      path: this._baseUrl,
-      last_modified: '',
-      created: '',
-      content: content,
-      format: 'json',
-      mimetype: '',
-      size: undefined,
-      writable: true,
-      type: 'directory'
-    };
+    // getting the contents of a specific file
+    else {
+      const fileName = path.split('/')[1];
+      console.log(fileName);
 
+      const command = new GetObjectCommand({
+        Bucket: this._name,
+        Key: fileName
+      });
+
+      const response = await this._s3Client.send(command);
+
+      if (response) {
+        const fileContents: string = await response.Body!.transformToString();
+        const date: string = response.LastModified!.toString();
+
+        data = {
+          name: fileName,
+          path: path,
+          last_modified: date,
+          created: '',
+          content: fileContents,
+          format: null,
+          mimetype: fileName.split('.')[1] === 'txt' ? 'text/plain' : '',
+          size: response.ContentLength!,
+          writable: true,
+          type:
+            fileName.split('.')[1] === 'txt'
+              ? 'txt'
+              : fileName.split('.')[1] === 'ipynb'
+                ? 'notebook'
+                : 'file' // how do we know if it's directory
+        };
+      }
+    }
+
+    Contents.validateContentsModel(data);
+    console.log(data);
     return data;
   }
 
