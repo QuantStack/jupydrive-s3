@@ -25,141 +25,6 @@ let data: Contents.IModel = {
   type: ''
 };
 
-const drive1Contents: Contents.IModel = {
-  name: 'Drive1',
-  path: 'Drive1',
-  last_modified: '2023-10-31T12:39:42.832781Z',
-  created: '2023-10-31T12:39:42.832781Z',
-  content: [
-    {
-      name: 'voila2.ipynb',
-      path: 'Drive1/voila2.ipynb',
-      last_modified: '2022-10-12T21:33:04.798185Z',
-      created: '2022-11-09T12:37:21.020396Z',
-      content: null,
-      format: null,
-      mimetype: null,
-      size: 5377,
-      writable: true,
-      type: 'notebook'
-    },
-    {
-      name: 'Untitled.ipynb',
-      path: 'Drive1/Untitled.ipynb',
-      last_modified: '2023-10-25T08:20:09.395167Z',
-      created: '2023-10-25T08:20:09.395167Z',
-      content: null,
-      format: null,
-      mimetype: null,
-      size: 4772,
-      writable: true,
-      type: 'notebook'
-    },
-    {
-      name: 'voila.ipynb',
-      path: 'Drive1/voila.ipynb',
-      last_modified: '2023-10-31T09:43:05.235448Z',
-      created: '2023-10-31T09:43:05.235448Z',
-      content: null,
-      format: null,
-      mimetype: null,
-      size: 2627,
-      writable: true,
-      type: 'notebook'
-    },
-    {
-      name: 'b.ipynb',
-      path: 'Drive1/b.ipynb',
-      last_modified: '2023-10-26T15:21:06.152419Z',
-      created: '2023-10-26T15:21:06.152419Z',
-      content: null,
-      format: null,
-      mimetype: null,
-      size: 1198,
-      writable: true,
-      type: 'notebook'
-    },
-    {
-      name: '_output',
-      path: '_output',
-      last_modified: '2023-10-31T12:39:41.222780Z',
-      created: '2023-10-31T12:39:41.222780Z',
-      content: null,
-      format: null,
-      mimetype: null,
-      size: null,
-      writable: true,
-      type: 'directory'
-    },
-    {
-      name: 'a.ipynb',
-      path: 'Drive1/a.ipynb',
-      last_modified: '2023-10-25T10:07:09.141206Z',
-      created: '2023-10-25T10:07:09.141206Z',
-      content: null,
-      format: null,
-      mimetype: null,
-      size: 8014,
-      writable: true,
-      type: 'notebook'
-    },
-    {
-      name: 'environment.yml',
-      path: 'Drive1/environment.yml',
-      last_modified: '2023-10-31T09:33:57.415583Z',
-      created: '2023-10-31T09:33:57.415583Z',
-      content: null,
-      format: null,
-      mimetype: null,
-      size: 153,
-      writable: true,
-      type: 'file'
-    },
-    {
-      name: 'untitled.txt',
-      path: 'Drive1/untitled.txt',
-      last_modified: '2023-10-25T08:20:09.395167Z',
-      created: '2023-10-25T08:20:09.395167Z',
-      content: null,
-      format: null,
-      mimetype: 'text/plain',
-      size: 4772,
-      writable: true,
-      type: 'txt'
-    },
-    {
-      name: 'untitled1.txt',
-      path: 'Drive1/untitled1.txt',
-      last_modified: '2023-10-25T08:20:09.395167Z',
-      created: '2023-10-25T08:20:09.395167Z',
-      content: null,
-      format: null,
-      mimetype: 'text/plain',
-      size: 4772,
-      writable: true,
-      type: 'txt'
-    },
-    {
-      name: 'Untitled Folder',
-      path: 'Drive1/Untitled Folder',
-      last_modified: '2023-10-25T08:20:09.395167Z',
-      created: '2023-10-25T08:20:09.395167Z',
-      content: [],
-      format: null,
-      mimetype: '',
-      size: 0,
-      writable: true,
-      type: 'directory'
-    }
-  ],
-
-  format: 'json',
-  mimetype: '',
-  size: undefined,
-  writable: true,
-  type: 'directory'
-};
-
 export class Drive implements Contents.IDrive {
   /**
    * Construct a new drive object.
@@ -830,7 +695,6 @@ export class Drive implements Contents.IDrive {
     return data;
   }
 
-
   /**
    * Copy a file into a given directory.
    *
@@ -897,35 +761,126 @@ export class Drive implements Contents.IDrive {
 
     return name;
   }
+
+  /**
+   * Copy a file into a given directory.
+   *
+   * @param path - The original file path.
+   *
+   * @param toDir - The destination directory path.
+   *
+   * @returns A promise which resolves with the new contents model when the
+   *  file is copied.
+   */
   async copy(
-    fromFile: string,
+    path: string,
     toDir: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    /*const settings = this.serverSettings;
-    const url = this._getUrl(toDir);
-    const init = {
-      method: 'POST',
-      body: JSON.stringify({ copy_from: fromFile })
-    };
-    const response = await ServerConnection.makeRequest(url, init, settings);
-    if (response.status !== 201) {
-      const err = await ServerConnection.ResponseError.create(response);
-      throw err;
-    }
-    const data = await response.json();*/
+    const originalFileName = path.split('/')[1];
 
-    const content: Array<Contents.IModel> = drive1Contents.content;
-    content.forEach(item => {
-      if (item.path === fromFile) {
-        const index = content.indexOf(item);
-        const oldData = content[index];
-        const { ...newData } = oldData;
-        newData.name = this.incrementCopyName(drive1Contents, fromFile);
-        newData.path = oldData.path.replace(oldData.name, newData.name);
-        content.push(newData);
-      }
+    // retrieve information of current drive data model
+    const content: IFileContent[] = [];
+
+    const command = new ListObjectsV2Command({
+      Bucket: this._name
     });
+
+    let isTruncated: boolean | undefined = true;
+
+    while (isTruncated) {
+      const { Contents, IsTruncated, NextContinuationToken } =
+        await this._s3Client.send(command);
+
+      if (Contents) {
+        if (Contents) {
+          Contents.forEach(c => {
+            const fileExtension = c.Key!.split('.')[1];
+
+            content.push({
+              name: c.Key!,
+              path: URLExt.join(this._name, c.Key!),
+              last_modified: c.LastModified!,
+              created: null,
+              content: null,
+              format: null,
+              mimetype: fileExtension === 'txt' ? 'text/plain' : null,
+              size: c.Size!,
+              writable: true,
+              type:
+                fileExtension === 'txt'
+                  ? 'txt'
+                  : fileExtension === 'ipynb'
+                    ? 'notebook'
+                    : 'file' // when is it directory
+            });
+          });
+        }
+      }
+      if (isTruncated) {
+        isTruncated = IsTruncated;
+      }
+      command.input.ContinuationToken = NextContinuationToken;
+    }
+
+    const old_data: Contents.IModel = {
+      name: this._name,
+      path: path,
+      last_modified: '',
+      created: '',
+      content: content,
+      format: 'json',
+      mimetype: '',
+      size: undefined,
+      writable: true,
+      type: 'directory'
+    };
+
+    const newFileName = this.incrementCopyName(old_data, path);
+
+    // retrieve information of original file
+    const oldFileContents = await this._s3Client.send(
+      new GetObjectCommand({
+        Bucket: this._name,
+        Key: originalFileName
+      })
+    );
+
+    // create a copy of the file to another location
+    const response = await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this._name,
+        Key: toDir + '/' + newFileName,
+        Body: await oldFileContents.Body!.transformToString()
+      })
+    );
+    console.log('COPY, response: ', response);
+
+    // retrieve information of new file
+    const newFileContents = await this._s3Client.send(
+      new GetObjectCommand({
+        Bucket: this._name,
+        Key: newFileName
+      })
+    );
+
+    data = {
+      name: newFileName,
+      path: toDir + '/' + newFileName,
+      last_modified: newFileContents.LastModified!.toString(),
+      created: Date(),
+      content: await newFileContents.Body!.transformToString(),
+      format: null,
+      mimetype: newFileName.split('.')[1] === 'txt' ? 'text/plain' : '',
+      size: newFileContents.ContentLength!,
+      writable: true,
+      type:
+        newFileName.split('.')[1] === 'txt'
+          ? 'txt'
+          : newFileName.split('.')[1] === 'ipynb'
+            ? 'notebook'
+            : 'file' // how do we know if it's directory
+    };
 
     this._fileChanged.emit({
       type: 'new',
