@@ -4,9 +4,9 @@ import { URLExt } from '@jupyterlab/coreutils';
 
 import {
   DeleteObjectCommand,
-  GetObjectCommand,
   S3Client,
   ListObjectsV2Command,
+  GetObjectCommand,
   PutObjectCommand
 } from '@aws-sdk/client-s3';
 
@@ -322,11 +322,10 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves with the created file content when the
    *    file is created.
    */
-
   async newUntitled(
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    const body = '{}';
+    let body = '{}';
 
     // get current list of contents of drive
     const content: IFileContent[] = [];
@@ -705,7 +704,6 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves with the new contents model when the
    *  file is copied.
    */
-
   incrementCopyName(contents: Contents.IModel, copiedItemPath: string): string {
     const content: Array<Contents.IModel> = contents.content;
     let name: string = '';
