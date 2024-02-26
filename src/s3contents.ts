@@ -5,7 +5,8 @@ import { URLExt } from '@jupyterlab/coreutils';
 import {
   GetObjectCommand,
   S3Client,
-  ListObjectsV2Command
+  ListObjectsV2Command,
+  PutObjectCommand
 } from '@aws-sdk/client-s3';
 
 import { getBucketRegion, IFileContent } from './s3';
@@ -459,49 +460,110 @@ export class Drive implements Contents.IDrive {
   async newUntitled(
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    /*let body = '{}';
-    if (options) {
-      if (options.ext) {
-        options.ext = Private.normalizeExtension(options.ext);
+    let body = '{}';
+
+    // get current list of contents of drive
+    const content: IFileContent[] = [];
+
+    const command = new ListObjectsV2Command({
+      Bucket: this._name
+    });
+
+    let isTruncated: boolean | undefined = true;
+
+    while (isTruncated) {
+      const { Contents, IsTruncated, NextContinuationToken } =
+        await this._s3Client.send(command);
+
+      if (Contents) {
+        if (Contents) {
+          Contents.forEach(c => {
+            const fileExtension = c.Key!.split('.')[1];
+
+            content.push({
+              name: c.Key!,
+              path: URLExt.join(this._name, c.Key!),
+              last_modified: c.LastModified!,
+              created: null,
+              content: null,
+              format: null,
+              mimetype: fileExtension === 'txt' ? 'text/plain' : null,
+              size: c.Size!,
+              writable: true,
+              type:
+                fileExtension === 'txt'
+                  ? 'txt'
+                  : fileExtension === 'ipynb'
+                    ? 'notebook'
+                    : 'file' // when is it directory
+            });
+          });
+        }
       }
-      body = JSON.stringify(options);
+      if (isTruncated) {
+        isTruncated = IsTruncated;
+      }
+      command.input.ContinuationToken = NextContinuationToken;
     }
 
-    const settings = this.serverSettings;
-    const url = this._getUrl(options.path ?? '');
-    const init = {
-      method: 'POST',
-      body
+    const old_data: Contents.IModel = {
+      name: this._name,
+      path: this._name,
+      last_modified: '',
+      created: '',
+      content: content,
+      format: 'json',
+      mimetype: '',
+      size: undefined,
+      writable: true,
+      type: 'directory'
     };
-    const response = await ServerConnection.makeRequest(url, init, settings);
-    if (response.status !== 201) {
-      const err = await ServerConnection.ResponseError.create(response);
-      throw err;
-    }
-    const data = await response.json();*/
 
     if (options.type !== undefined) {
       if (options.type !== 'directory') {
-        const name = this.incrementUntitledName(drive1Contents, options);
+        const name = this.incrementUntitledName(old_data, options);
+        const response = await this.s3Client.send(new PutObjectCommand({
+          Bucket: this._name,
+          Key: name + options.ext,
+          Body: body
+        }));
+        console.log('NEW FILE, response: ', response);
+
+        // retrieve information of old file
+        const newFileContents = await this._s3Client.send(
+          new GetObjectCommand({
+            Bucket: this._name,
+            Key: name
+          })
+        );
+
         data = {
           name: name,
           path: options.path + '/' + name,
-          last_modified: '2023-12-06T10:37:42.089566Z',
-          created: '2023-12-06T10:37:42.089566Z',
-          content: null,
+          last_modified: newFileContents.LastModified!.toString(),
+          created: Date(),
+          content: body,
           format: null,
-          mimetype: '',
-          size: 0,
+          mimetype: options.ext === 'txt' ? 'text/plain' : '',
+          size: newFileContents.ContentLength,
           writable: true,
           type: options.type
         };
       } else {
-        const name = this.incrementUntitledName(drive1Contents, options);
+        // creating a new directory
+        const name = this.incrementUntitledName(old_data, options);
+        const response = await this.s3Client.send(new PutObjectCommand({
+          Bucket: this._name,
+          Key: name + '/',
+          Body: body
+        }));
+        console.log('NEW DIRECTORY, response: ', response);
+
         data = {
           name: name,
           path: options.path + '/' + name,
-          last_modified: '2023-12-06T10:37:42.089566Z',
-          created: '2023-12-06T10:37:42.089566Z',
+          last_modified: Date(),
+          created: Date(),
           content: [],
           format: 'json',
           mimetype: '',
@@ -513,8 +575,6 @@ export class Drive implements Contents.IDrive {
     } else {
       console.warn('Type of new element is undefined');
     }
-
-    drive1Contents.content.push(data);
 
     Contents.validateContentsModel(data);
     this._fileChanged.emit({
