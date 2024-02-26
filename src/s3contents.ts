@@ -39,7 +39,6 @@ export class Drive implements Contents.IDrive {
     this._name = options.name;
     this._baseUrl = URLExt.join('https://s3.amazonaws.com/', this._name);
     this._provider = 'S3';
-    this._status = 'active';
 
     getBucketRegion(this._s3Client, this._name)
       .then((region: string | undefined) => {
@@ -101,19 +100,6 @@ export class Drive implements Contents.IDrive {
    * The Drive provider setter */
   set provider(name: string) {
     this._provider = name;
-  }
-
-  /**
-   * The Drive status getter (if it is active or not)
-   */
-  get status(): string {
-    return this._status;
-  }
-
-  /**
-   * The Drive status setter */
-  set status(status: string) {
-    this._status = status;
   }
 
   /**
@@ -944,7 +930,6 @@ export class Drive implements Contents.IDrive {
   private _name: string = '';
   private _provider: string = '';
   private _baseUrl: string = '';
-  private _status: string = 'active' || 'inactive';
   private _region: string = '';
   private _creationDate: string = '';
   private _fileChanged = new Signal<this, Contents.IChangedArgs>(this);
