@@ -754,28 +754,82 @@ export class Drive implements Contents.IDrive {
     localPath: string,
     options: Partial<Contents.IModel> = {}
   ): Promise<Contents.IModel> {
-    /*const settings = this.serverSettings;
-    const url = this._getUrl(localPath);
-    const init = {
-      method: 'PUT',
-      body: JSON.stringify(options)
+    console.log('SAVE, local path: ', localPath);
+    const fileName = localPath.split('/')[1];
+
+    // retrieve information of old file
+    const oldFile = await this._s3Client.send(
+      new GetObjectCommand({
+        Bucket: this._name,
+        Key: fileName
+      })
+    );
+
+    const old_data: Contents.IModel = {
+      name: fileName,
+      path: localPath,
+      last_modified: oldFile.LastModified!.toString(),
+      created: '',
+      content: await oldFile.Body!.transformToString(),
+      format: null,
+      mimetype: fileName.split('.')[1] === 'txt' ? 'text/plain' : '',
+      size: oldFile.ContentLength!,
+      writable: true,
+      type:
+        fileName.split('.')[1] === 'txt'
+          ? 'txt'
+          : fileName.split('.')[1] === 'ipynb'
+            ? 'notebook'
+            : 'file' // how do we know if it's directory
     };
-    const response = await ServerConnection.makeRequest(url, init, settings);
-    // will return 200 for an existing file and 201 for a new file
-    if (response.status !== 200 && response.status !== 201) {
-      const err = await ServerConnection.ResponseError.create(response);
-      throw err;
-    }
-    const data = await response.json();*/
+
+    // save file with new content
+    const response = await this._s3Client.send(
+      new PutObjectCommand({
+        Bucket: this._name,
+        Key: fileName,
+        Body: JSON.stringify(options)
+      })
+    );
+    console.log('SAVE response: ', response);
+
+    // retrieve information of file
+    const info = await this._s3Client.send(
+      new GetObjectCommand({
+        Bucket: this._name,
+        Key: fileName
+      })
+    );
+
+    data = {
+      name: fileName,
+      path: localPath,
+      last_modified: info.LastModified!.toString(),
+      created: '',
+      content: JSON.stringify(options),
+      format: null,
+      mimetype: fileName.split('.')[1] === 'txt' ? 'text/plain' : '',
+      size: info.ContentLength!,
+      writable: true,
+      type:
+        fileName.split('.')[1] === 'txt'
+          ? 'txt'
+          : fileName.split('.')[1] === 'ipynb'
+            ? 'notebook'
+            : 'file' // how do we know if it's directory
+    };
 
     Contents.validateContentsModel(data);
+
     this._fileChanged.emit({
       type: 'save',
-      oldValue: null,
+      oldValue: old_data,
       newValue: data
     });
+
     return data;
   }
+
 
   /**
    * Copy a file into a given directory.
