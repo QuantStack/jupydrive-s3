@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   GetBucketLocationCommand,
+  GetObjectAclCommand,
   HeadBucketCommand,
   S3Client,
   PutBucketCorsCommand,
@@ -69,6 +70,7 @@ export const setBucketCORS = async (client: S3Client, bucketName: string) => {
 
 /**
  * Determine if already bucket exists.
+ * @param client S3 client
  * @param bucketName name of bucket
  */
 export const isBucket = async (client: S3Client, bucketName: string) => {
@@ -96,6 +98,7 @@ export const isBucket = async (client: S3Client, bucketName: string) => {
 
 /**
  * Get bucket region.
+ * @param client S3 client
  * @param bucketName name of bucket
  * @returns
  */
@@ -117,7 +120,30 @@ export const getBucketRegion = async (client: S3Client, bucketName: string) => {
 };
 
 /**
+ * Get permissons for a specific file.
+ *
+ * e.g.: Owner, Grants, Permissons: FULL-CONTROL, READ, WRITE
+ * @param client S3 client
+ * @param bucketName name of bucket
+ * @param fileName name of file
+ */
+export const getObjectPermissons = async (
+  client: S3Client,
+  bucketName: string,
+  fileName: string
+) => {
+  const command = new GetObjectAclCommand({
+    Bucket: bucketName,
+    Key: fileName
+  });
+
+  const response = await client.send(command);
+  console.log(response);
+};
+
+/**
  * List all buckets the credentials give access to.
+ * @param client S3 client
  */
 export const listBuckets = async (client: S3Client) => {
   const command = new ListBucketsCommand({});
@@ -133,6 +159,7 @@ export const listBuckets = async (client: S3Client) => {
 /**
  * List all contents of a bucket.
  *
+ * @param client S3 client
  * @param bucketName name of bucket
  */
 export const listBucketContents = async (
@@ -196,6 +223,7 @@ export const listBucketContents = async (
 /**
  * Get contents of a specified file within a bucket.
  *
+ * @param client S3 client
  * @param bucketName name of bucket
  * @param fileName name of file to retrieve contents of
  */
@@ -215,6 +243,28 @@ export const getFileContents = async (
     if (response) {
       const fileContents = await response.Body!.transformToString();
       console.log('File Contents: ', fileContents);
+
+      const data: IFileContent = {
+        name: fileName,
+        path: URLExt.join(bucketName, fileName),
+        last_modified: response.LastModified!,
+        created: null,
+        content: fileContents,
+        format: null,
+        mimetype: fileName.split('.')[1] === 'txt' ? 'text/plain' : null,
+        size: response.ContentLength!,
+        writable: true,
+        type:
+          fileName.split('.')[1] === 'txt'
+            ? 'txt'
+            : fileName.split('.')[1] === 'ipynb'
+              ? 'notebook'
+              : 'file' // when is it directory
+      };
+
+      return data;
+
+      // return [response, fileContents];
     }
 
     console.log('File ', fileName, ': ', response);
@@ -226,6 +276,7 @@ export const getFileContents = async (
 /**
  * Uploading a file to a bucket.
  *
+ * @param client S3 client
  * @param bucketName name of bucket
  * @param file name of file including its type extension (e.g.: test_file.txt)
  * @param body blob containing contents of file
@@ -253,6 +304,7 @@ export const uploadFile = async (
 /**
  * Delete a specified file from a bucket.
  *
+ * @param client S3 client
  * @param bucketName name of bucket
  * @param file name of file including its type extension (e.g.: test_file.txt)
  */

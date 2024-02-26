@@ -162,15 +162,8 @@ export class Drive implements Contents.IDrive {
    */
   constructor(options: Drive.IOptions) {
     this._serverSettings = ServerConnection.makeSettings();
-    //this._apiEndpoint = options.apiEndpoint ?? SERVICE_DRIVE_URL;
 
-    this._s3Client = new S3Client({
-      region: 'eu-north-1',
-      credentials: {
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
-    });
+    this._s3Client = new S3Client({});
 
     this._name = options.name;
     this._baseUrl = URLExt.join('https://s3.amazonaws.com/', this._name);
@@ -197,7 +190,7 @@ export class Drive implements Contents.IDrive {
    * The Drive S3 client
    */
   set s3Client(s3Client: S3Client) {
-    this._s3Client = new S3Client({});
+    this._s3Client = s3Client;
   }
 
   /**
@@ -847,16 +840,6 @@ export class Drive implements Contents.IDrive {
     return Promise.reject('Read only');
   }
 
-  /**
-   * Get a REST url for a file given a path.
-   */
-  /*private _getUrl(...args: string[]): string {
-    const parts = args.map(path => URLExt.encodeParts(path));
-    const baseUrl = this.serverSettings.baseUrl;
-    return URLExt.join(baseUrl, this._apiEndpoint, ...parts);
-  }*/
-
-  // private _apiEndpoint: string;
   private _serverSettings: ServerConnection.ISettings;
   private _s3Client: S3Client;
   private _name: string = '';
@@ -885,12 +868,5 @@ export namespace Drive {
      * The server settings for the server.
      */
     serverSettings?: ServerConnection.ISettings;
-
-    /**
-     * A REST endpoint for drive requests.
-     * If not given, defaults to the Jupyter
-     * REST API given by [Jupyter Notebook API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/jupyter-server/jupyter_server/main/jupyter_server/services/api/api.yaml#!/contents).
-     */
-    apiEndpoint?: string;
   }
 }
