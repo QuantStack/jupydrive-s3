@@ -461,7 +461,7 @@ export class Drive implements Contents.IDrive {
   async newUntitled(
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    let body = '{}';
+    const body = '{}';
 
     // get current list of contents of drive
     const content: IFileContent[] = [];
@@ -523,11 +523,13 @@ export class Drive implements Contents.IDrive {
     if (options.type !== undefined) {
       if (options.type !== 'directory') {
         const name = this.incrementUntitledName(old_data, options);
-        const response = await this.s3Client.send(new PutObjectCommand({
-          Bucket: this._name,
-          Key: name + options.ext,
-          Body: body
-        }));
+        const response = await this.s3Client.send(
+          new PutObjectCommand({
+            Bucket: this._name,
+            Key: name + options.ext,
+            Body: body
+          })
+        );
         console.log('NEW FILE, response: ', response);
 
         // retrieve information of old file
@@ -553,11 +555,13 @@ export class Drive implements Contents.IDrive {
       } else {
         // creating a new directory
         const name = this.incrementUntitledName(old_data, options);
-        const response = await this.s3Client.send(new PutObjectCommand({
-          Bucket: this._name,
-          Key: name + '/',
-          Body: body
-        }));
+        const response = await this.s3Client.send(
+          new PutObjectCommand({
+            Bucket: this._name,
+            Key: name + '/',
+            Body: body
+          })
+        );
         console.log('NEW DIRECTORY, response: ', response);
 
         data = {
@@ -635,32 +639,32 @@ export class Drive implements Contents.IDrive {
     return name;
   }
 
- /**
+  /**
    * Delete a file.
    *
    * @param path - The path to the file.
    *
    * @returns A promise which resolves when the file is deleted.
    */
- async delete(localPath: string): Promise<void> {
-  console.log('DELETE, local path: ', localPath);
-  const fileName = localPath.split('/')[1];
-  console.log('DELETE, filename: ', fileName);
+  async delete(localPath: string): Promise<void> {
+    console.log('DELETE, local path: ', localPath);
+    const fileName = localPath.split('/')[1];
+    console.log('DELETE, filename: ', fileName);
 
-  const response = await this.s3Client.send(
-    new DeleteObjectCommand({
-      Bucket: this._name,
-      Key: fileName
-    })
-  );
-  console.log('DELETE, response: ', response);
+    const response = await this.s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: this._name,
+        Key: fileName
+      })
+    );
+    console.log('DELETE, response: ', response);
 
-  this._fileChanged.emit({
-    type: 'delete',
-    oldValue: { path: localPath },
-    newValue: { path: undefined }
-  });
-}
+    this._fileChanged.emit({
+      type: 'delete',
+      oldValue: { path: localPath },
+      newValue: { path: undefined }
+    });
+  }
 
   /**
    * Rename a file or directory.
@@ -680,31 +684,48 @@ export class Drive implements Contents.IDrive {
     newLocalPath: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    /*const settings = this.serverSettings;
-    const url = this._getUrl(oldLocalPath);
-    const init = {
-      method: 'PATCH',
-      body: JSON.stringify({ path: newLocalPath })
-    };
-    const response = await ServerConnection.makeRequest(url, init, settings);
-    if (response.status !== 200) {
-      const err = await ServerConnection.ResponseError.create(response);
-      throw err;
-    }
-    const data = await response.json();*/
+    console.log('RENAME, old local path: ', oldLocalPath);
+    console.log('RENAME, new local path: ', newLocalPath);
+    const oldFileName = oldLocalPath.split('/')[1];
+    const newFileName = newLocalPath.split('/')[1];
+    console.log('RENAME, old filename: ', oldFileName);
+    console.log('RENAME, new filename: ', newFileName);
 
-    const content: Array<Contents.IModel> = drive1Contents.content;
-    content.forEach(item => {
-      if (item.name === oldLocalPath) {
-        const index = content.indexOf(item);
-        const oldData = content[index];
-        const { ...newData } = oldData;
-        newData.name = newLocalPath;
-        newData.path = oldData.path.replace(oldData.name, newData.name);
-        content.splice(index, 1);
-        content.push(newData);
-      }
-    });
+    // retrieve information of old file
+    const fileContents = await this._s3Client.send(
+      new GetObjectCommand({
+        Bucket: this._name,
+        Key: oldFileName
+      })
+    );
+
+    const response = await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this._name,
+        Key: newFileName,
+        Body: await fileContents.Body?.transformToString()
+      })
+    );
+    console.log(response);
+
+    const data = {
+      name: newFileName,
+      path: newLocalPath,
+      last_modified: fileContents.LastModified!.toString(),
+      created: '',
+      content: await fileContents.Body!.transformToString(),
+      format: null,
+      mimetype: newFileName.split('.')[1] === 'txt' ? 'text/plain' : '',
+      size: fileContents.ContentLength!,
+      writable: true,
+      type:
+        newFileName.split('.')[1] === 'txt'
+          ? 'txt'
+          : newFileName.split('.')[1] === 'ipynb'
+            ? 'notebook'
+            : 'file' // how do we know if it's directory
+    };
+
     this._fileChanged.emit({
       type: 'rename',
       oldValue: { path: oldLocalPath },
@@ -713,6 +734,7 @@ export class Drive implements Contents.IDrive {
     Contents.validateContentsModel(data);
     return data;
   }
+
   /**
    * Save a file.
    *
