@@ -536,14 +536,28 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     console.log('RENAME, old local path: ', oldLocalPath);
     console.log('RENAME, new local path: ', newLocalPath);
-    const oldFileName = oldLocalPath.split('/')[1];
-    const newFileName = newLocalPath.split('/')[1];
+    const oldFileName =
+      oldLocalPath.indexOf('/') >= 0
+        ? oldLocalPath.split('/')[1]
+        : oldLocalPath;
+    const newFileName =
+      newLocalPath.indexOf('/') >= 0
+        ? newLocalPath.split('/')[1]
+        : newLocalPath;
     console.log('RENAME, old filename: ', oldFileName);
     console.log('RENAME, new filename: ', newFileName);
 
     // retrieve information of old file
     const fileContents = await this._s3Client.send(
       new GetObjectCommand({
+        Bucket: this._name,
+        Key: oldFileName
+      })
+    );
+
+    // delete old object
+    await this._s3Client.send(
+      new DeleteObjectCommand({
         Bucket: this._name,
         Key: oldFileName
       })
@@ -580,7 +594,7 @@ export class Drive implements Contents.IDrive {
     this._fileChanged.emit({
       type: 'rename',
       oldValue: { path: oldLocalPath },
-      newValue: { path: newLocalPath }
+      newValue: data
     });
     Contents.validateContentsModel(data);
     return data;
