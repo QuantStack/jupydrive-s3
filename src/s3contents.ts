@@ -10,7 +10,7 @@ import {
   PutObjectCommand
 } from '@aws-sdk/client-s3';
 
-import { getBucketRegion, IFileContent } from './s3';
+import { getBucketRegion } from './s3';
 
 let data: Contents.IModel = {
   name: '',
@@ -202,7 +202,7 @@ export class Drive implements Contents.IDrive {
 
     // check if we are getting the list of files from the drive
     if (!path) {
-      const content: IFileContent[] = [];
+      const content: Contents.IModel[] = [];
 
       const command = new ListObjectsV2Command({
         Bucket: this._name
@@ -222,11 +222,11 @@ export class Drive implements Contents.IDrive {
               content.push({
                 name: c.Key!,
                 path: URLExt.join(this._name, c.Key!),
-                last_modified: c.LastModified!,
-                created: null,
+                last_modified: c.LastModified!.toISOString(),
+                created: '',
                 content: null,
                 format: null,
-                mimetype: fileExtension === 'txt' ? 'text/plain' : null,
+                mimetype: fileExtension === 'txt' ? 'text/plain' : '',
                 size: c.Size!,
                 writable: true,
                 type:
@@ -273,7 +273,7 @@ export class Drive implements Contents.IDrive {
 
       if (response) {
         const fileContents: string = await response.Body!.transformToString();
-        const date: string = response.LastModified!.toString();
+        const date: string = response.LastModified!.toISOString();
 
         data = {
           name: fileName,
@@ -314,7 +314,7 @@ export class Drive implements Contents.IDrive {
     const body = '{}';
 
     // get current list of contents of drive
-    const content: IFileContent[] = [];
+    const content: Contents.IModel[] = [];
 
     const command = new ListObjectsV2Command({
       Bucket: this._name
@@ -334,11 +334,11 @@ export class Drive implements Contents.IDrive {
             content.push({
               name: c.Key!,
               path: URLExt.join(this._name, c.Key!),
-              last_modified: c.LastModified!,
-              created: null,
+              last_modified: c.LastModified!.toISOString(),
+              created: '',
               content: null,
               format: null,
-              mimetype: fileExtension === 'txt' ? 'text/plain' : null,
+              mimetype: fileExtension === 'txt' ? 'text/plain' : '',
               size: c.Size!,
               writable: true,
               type:
@@ -393,7 +393,7 @@ export class Drive implements Contents.IDrive {
         data = {
           name: name,
           path: options.path + '/' + name,
-          last_modified: newFileContents.LastModified!.toString(),
+          last_modified: newFileContents.LastModified!.toISOString(),
           created: Date(),
           content: body,
           format: null,
@@ -549,6 +549,7 @@ export class Drive implements Contents.IDrive {
       })
     );
 
+    // create new file with same content, but different name
     const response = await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
@@ -561,7 +562,7 @@ export class Drive implements Contents.IDrive {
     const data = {
       name: newFileName,
       path: newLocalPath,
-      last_modified: fileContents.LastModified!.toString(),
+      last_modified: fileContents.LastModified!.toISOString(),
       created: '',
       content: await fileContents.Body!.transformToString(),
       format: null,
@@ -618,7 +619,7 @@ export class Drive implements Contents.IDrive {
     const old_data: Contents.IModel = {
       name: fileName,
       path: localPath,
-      last_modified: oldFile.LastModified!.toString(),
+      last_modified: oldFile.LastModified!.toISOString(),
       created: '',
       content: await oldFile.Body!.transformToString(),
       format: null,
@@ -654,7 +655,7 @@ export class Drive implements Contents.IDrive {
     data = {
       name: fileName,
       path: localPath,
-      last_modified: info.LastModified!.toString(),
+      last_modified: info.LastModified!.toISOString(),
       created: '',
       content: JSON.stringify(options),
       format: null,
@@ -764,7 +765,7 @@ export class Drive implements Contents.IDrive {
     const originalFileName = path.split('/')[1];
 
     // retrieve information of current drive data model
-    const content: IFileContent[] = [];
+    const content: Contents.IModel[] = [];
 
     const command = new ListObjectsV2Command({
       Bucket: this._name
@@ -784,11 +785,11 @@ export class Drive implements Contents.IDrive {
             content.push({
               name: c.Key!,
               path: URLExt.join(this._name, c.Key!),
-              last_modified: c.LastModified!,
-              created: null,
+              last_modified: c.LastModified!.toISOString(),
+              created: '',
               content: null,
               format: null,
-              mimetype: fileExtension === 'txt' ? 'text/plain' : null,
+              mimetype: fileExtension === 'txt' ? 'text/plain' : '',
               size: c.Size!,
               writable: true,
               type:
@@ -851,7 +852,7 @@ export class Drive implements Contents.IDrive {
     data = {
       name: newFileName,
       path: toDir + '/' + newFileName,
-      last_modified: newFileContents.LastModified!.toString(),
+      last_modified: newFileContents.LastModified!.toISOString(),
       created: Date(),
       content: await newFileContents.Body!.transformToString(),
       format: null,
