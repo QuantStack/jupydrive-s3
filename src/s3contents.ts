@@ -622,43 +622,35 @@ export class Drive implements Contents.IDrive {
     console.log('SAVE, local path: ', localPath);
     const fileName = localPath.split('/')[1];
 
-    // retrieve information of old file
-    const oldFile = await this._s3Client.send(
-      new GetObjectCommand({
+    // deleting old object
+    await this._s3Client.send(
+      new DeleteObjectCommand({
         Bucket: this._name,
         Key: fileName
       })
     );
 
-    const old_data: Contents.IModel = {
-      name: fileName,
-      path: localPath,
-      last_modified: oldFile.LastModified!.toISOString(),
-      created: '',
-      content: await oldFile.Body!.transformToString(),
-      format: null,
-      mimetype: fileName.split('.')[1] === 'txt' ? 'text/plain' : '',
-      size: oldFile.ContentLength!,
-      writable: true,
-      type:
-        fileName.split('.')[1] === 'txt'
-          ? 'txt'
-          : fileName.split('.')[1] === 'ipynb'
-            ? 'notebook'
-            : 'file' // how do we know if it's directory
-    };
+    // console.log('SAVE, option content: ', typeof(options?.content), options.format)
+    let body: string;
+    if (options.format === 'json') {
+      body = JSON.stringify(options?.content, null, 2);
+      console.log('SAVE, json content: ', body);
+    } else {
+      body = options?.content;
+      console.log('SAVE, text content: ', body);
+    }
 
-    // save file with new content
+    // save file with new content by creating new file
     const response = await this._s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
         Key: fileName,
-        Body: JSON.stringify(options)
+        Body: body
       })
     );
     console.log('SAVE response: ', response);
 
-    // retrieve information of file
+    // retrieve information of file with new content
     const info = await this._s3Client.send(
       new GetObjectCommand({
         Bucket: this._name,
@@ -666,12 +658,13 @@ export class Drive implements Contents.IDrive {
       })
     );
 
+    console.log(fileName.split('.')[1]);
     data = {
       name: fileName,
       path: localPath,
       last_modified: info.LastModified!.toISOString(),
       created: '',
-      content: JSON.stringify(options),
+      content: body,
       format: null,
       mimetype: fileName.split('.')[1] === 'txt' ? 'text/plain' : '',
       size: info.ContentLength!,
@@ -683,12 +676,14 @@ export class Drive implements Contents.IDrive {
             ? 'notebook'
             : 'file' // how do we know if it's directory
     };
+    // console.log('body: ', body)
+    // console.log('info.body: ', await info.Body?.transformToString())
 
     Contents.validateContentsModel(data);
 
     this._fileChanged.emit({
       type: 'save',
-      oldValue: old_data,
+      oldValue: null,
       newValue: data
     });
 
@@ -898,8 +893,12 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves with the new checkpoint model when the
    *   checkpoint is created.
    */
-  createCheckpoint(path: string): Promise<Contents.ICheckpointModel> {
-    return Promise.reject('Repository is read only');
+  async createCheckpoint(path: string): Promise<Contents.ICheckpointModel> {
+    const emptyCheckpoint: Contents.ICheckpointModel = {
+      id: '',
+      last_modified: ''
+    };
+    return Promise.resolve(emptyCheckpoint);
   }
 
   /**
