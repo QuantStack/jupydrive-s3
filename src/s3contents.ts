@@ -578,8 +578,22 @@ export class Drive implements Contents.IDrive {
    */
   async delete(localPath: string): Promise<void> {
     console.log('DELETE, local path: ', localPath);
-    const fileName = localPath.split('/')[1];
-    console.log('DELETE, filename: ', fileName);
+    let fileName = localPath.split('/')[1];
+
+    const info = await this.s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: this._name,
+        Prefix: fileName
+      })
+    );
+
+    // check if we are dealing with a directory
+    if (
+      info.Contents!.length > 1 ||
+      info.Contents![0].Key?.indexOf('/') !== -1
+    ) {
+      fileName = fileName + '/';
+    }
 
     const response = await this.s3Client.send(
       new DeleteObjectCommand({
