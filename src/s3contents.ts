@@ -217,25 +217,33 @@ export class Drive implements Contents.IDrive {
         if (Contents) {
           if (Contents) {
             Contents.forEach(c => {
-              const fileExtension = c.Key!.split('.')[1];
+              // checking if we are dealing with the file inside a folder
+              if (
+                c.Key!.split('/').length === 1 ||
+                c.Key!.split('/')[c.Key!.split('/').length - 1] === ''
+              ) {
+                const fileExtension = c.Key!.split('.')[1];
 
-              content.push({
-                name: c.Key!,
-                path: URLExt.join(this._name, c.Key!),
-                last_modified: c.LastModified!.toISOString(),
-                created: '',
-                content: null,
-                format: null,
-                mimetype: fileExtension === 'txt' ? 'text/plain' : '',
-                size: c.Size!,
-                writable: true,
-                type:
-                  fileExtension === 'txt'
-                    ? 'txt'
-                    : fileExtension === 'ipynb'
-                      ? 'notebook'
-                      : 'file' // when is it directory
-              });
+                content.push({
+                  name: !fileExtension ? c.Key!.slice(0, -1) : c.Key!,
+                  path: URLExt.join(this._name, c.Key!),
+                  last_modified: c.LastModified!.toISOString(),
+                  created: '',
+                  content: !fileExtension ? [] : null,
+                  format: !fileExtension ? 'json' : null,
+                  mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+                  size: c.Size!,
+                  writable: true,
+                  type:
+                    fileExtension === 'txt'
+                      ? 'txt'
+                      : fileExtension === 'ipynb'
+                        ? 'notebook'
+                        : !fileExtension
+                          ? 'directory'
+                          : 'file'
+                });
+              }
             });
           }
         }
@@ -257,46 +265,113 @@ export class Drive implements Contents.IDrive {
         writable: true,
         type: 'directory'
       };
-    }
+    } else {
+      const splitPath = path.split('/');
+      const currentPath = splitPath[splitPath.length - 1];
+      // console.log('current path: ', currentPath);
 
-    // getting the contents of a specific file
-    else {
-      const fileName = path.split('/')[1];
-      console.log(fileName);
+      // listing contents of a folder
+      if (currentPath.indexOf('.') === -1) {
+        const content: Contents.IModel[] = [];
 
-      const command = new GetObjectCommand({
-        Bucket: this._name,
-        Key: fileName
-      });
+        const command = new ListObjectsV2Command({
+          Bucket: this._name,
+          Prefix: currentPath
+        });
 
-      const response = await this._s3Client.send(command);
+        let isTruncated: boolean | undefined = true;
 
-      if (response) {
-        const fileContents: string = await response.Body!.transformToString();
-        const date: string = response.LastModified!.toISOString();
+        while (isTruncated) {
+          const { Contents, IsTruncated, NextContinuationToken } =
+            await this._s3Client.send(command);
+          console.log(Contents);
+
+          if (Contents) {
+            if (Contents) {
+              Contents.forEach(c => {
+                // checking if we are dealing with the file inside a folder
+                if (c.Key !== currentPath + '/') {
+                  const fileExtension = c.Key!.split('.')[1];
+                  const fileName = c.Key!.split('/')[1];
+
+                  content.push({
+                    name: fileName,
+                    path: path,
+                    last_modified: c.LastModified!.toISOString(),
+                    created: '',
+                    content: !fileExtension ? [] : null,
+                    format: !fileExtension ? 'json' : null,
+                    mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+                    size: c.Size!,
+                    writable: true,
+                    type:
+                      fileExtension === 'txt'
+                        ? 'txt'
+                        : fileExtension === 'ipynb'
+                          ? 'notebook'
+                          : !fileExtension
+                            ? 'directory'
+                            : 'file'
+                  });
+                }
+              });
+            }
+          }
+          if (isTruncated) {
+            isTruncated = IsTruncated;
+          }
+          command.input.ContinuationToken = NextContinuationToken;
+        }
 
         data = {
-          name: fileName,
-          path: path,
-          last_modified: date,
+          name: this._name,
+          path: this._name,
+          last_modified: '',
           created: '',
-          content: fileContents,
-          format: null,
-          mimetype: fileName.split('.')[1] === 'txt' ? 'text/plain' : '',
-          size: response.ContentLength!,
+          content: content,
+          format: 'json',
+          mimetype: '',
+          size: undefined,
           writable: true,
-          type:
-            fileName.split('.')[1] === 'txt'
-              ? 'txt'
-              : fileName.split('.')[1] === 'ipynb'
-                ? 'notebook'
-                : 'file' // how do we know if it's directory
+          type: 'directory'
         };
+      }
+
+      // getting the contents of a specific file
+      else {
+        const command = new GetObjectCommand({
+          Bucket: this._name,
+          Key: currentPath
+        });
+
+        const response = await this._s3Client.send(command);
+
+        if (response) {
+          const fileContents: string = await response.Body!.transformToString();
+          const date: string = response.LastModified!.toISOString();
+
+          data = {
+            name: currentPath,
+            path: path,
+            last_modified: date,
+            created: '',
+            content: fileContents,
+            format: null,
+            mimetype: currentPath.split('.')[1] === 'txt' ? 'text/plain' : '',
+            size: response.ContentLength!,
+            writable: true,
+            type:
+              currentPath.split('.')[1] === 'txt'
+                ? 'txt'
+                : currentPath.split('.')[1] === 'ipynb'
+                  ? 'notebook'
+                  : 'file' // how do we know if it's directory
+          };
+        }
       }
     }
 
     Contents.validateContentsModel(data);
-    console.log(data);
     return data;
   }
 
@@ -311,7 +386,7 @@ export class Drive implements Contents.IDrive {
   async newUntitled(
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    const body = '{}';
+    const body = '';
 
     // get current list of contents of drive
     const content: Contents.IModel[] = [];
@@ -336,8 +411,8 @@ export class Drive implements Contents.IDrive {
               path: URLExt.join(this._name, c.Key!),
               last_modified: c.LastModified!.toISOString(),
               created: '',
-              content: null,
-              format: null,
+              content: !fileExtension ? [] : null,
+              format: !fileExtension ? 'json' : null,
               mimetype: fileExtension === 'txt' ? 'text/plain' : '',
               size: c.Size!,
               writable: true,
@@ -346,7 +421,9 @@ export class Drive implements Contents.IDrive {
                   ? 'txt'
                   : fileExtension === 'ipynb'
                     ? 'notebook'
-                    : 'file' // when is it directory
+                    : !fileExtension
+                      ? 'directory'
+                      : 'file'
             });
           });
         }
@@ -376,7 +453,7 @@ export class Drive implements Contents.IDrive {
         const response = await this.s3Client.send(
           new PutObjectCommand({
             Bucket: this._name,
-            Key: name + options.ext,
+            Key: name,
             Body: body
           })
         );
@@ -588,7 +665,7 @@ export class Drive implements Contents.IDrive {
           ? 'txt'
           : newFileName.split('.')[1] === 'ipynb'
             ? 'notebook'
-            : 'file' // how do we know if it's directory
+            : 'file'
     };
 
     this._fileChanged.emit({
@@ -622,14 +699,6 @@ export class Drive implements Contents.IDrive {
     console.log('SAVE, local path: ', localPath);
     const fileName = localPath.split('/')[1];
 
-    // deleting old object
-    await this._s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: this._name,
-        Key: fileName
-      })
-    );
-
     // console.log('SAVE, option content: ', typeof(options?.content), options.format)
     let body: string;
     if (options.format === 'json') {
@@ -640,12 +709,13 @@ export class Drive implements Contents.IDrive {
       console.log('SAVE, text content: ', body);
     }
 
-    // save file with new content by creating new file
+    // save file with new content by overwritting existing file
     const response = await this._s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
         Key: fileName,
-        Body: body
+        Body: body,
+        CacheControl: 'no-cache'
       })
     );
     console.log('SAVE response: ', response);
@@ -674,7 +744,7 @@ export class Drive implements Contents.IDrive {
           ? 'txt'
           : fileName.split('.')[1] === 'ipynb'
             ? 'notebook'
-            : 'file' // how do we know if it's directory
+            : 'file'
     };
     // console.log('body: ', body)
     // console.log('info.body: ', await info.Body?.transformToString())
@@ -796,8 +866,8 @@ export class Drive implements Contents.IDrive {
               path: URLExt.join(this._name, c.Key!),
               last_modified: c.LastModified!.toISOString(),
               created: '',
-              content: null,
-              format: null,
+              content: !fileExtension ? [] : null,
+              format: !fileExtension ? 'json' : null,
               mimetype: fileExtension === 'txt' ? 'text/plain' : '',
               size: c.Size!,
               writable: true,
@@ -806,7 +876,9 @@ export class Drive implements Contents.IDrive {
                   ? 'txt'
                   : fileExtension === 'ipynb'
                     ? 'notebook'
-                    : 'file' // when is it directory
+                    : !fileExtension
+                      ? 'directory'
+                      : 'file'
             });
           });
         }
