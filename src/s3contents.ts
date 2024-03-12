@@ -527,6 +527,9 @@ export class Drive implements Contents.IDrive {
     let countText = 0;
     let countDir = 0;
     let countNotebook = 0;
+    if (options.type === 'notebook') {
+      options.ext = 'ipynb';
+    }
 
     content.forEach(item => {
       if (options.ext !== undefined) {
