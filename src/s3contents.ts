@@ -630,14 +630,31 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     console.log('RENAME, old local path: ', oldLocalPath);
     console.log('RENAME, new local path: ', newLocalPath);
-    const oldFileName =
+    let oldFileName =
       oldLocalPath.indexOf('/') >= 0
         ? oldLocalPath.split('/')[1]
         : oldLocalPath;
-    const newFileName =
+    let newFileName =
       newLocalPath.indexOf('/') >= 0
         ? newLocalPath.split('/')[1]
         : newLocalPath;
+
+    // check if we are dealing with a directory
+    const info = await this.s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: this._name,
+        Prefix: oldFileName
+      })
+    );
+
+    if (
+      info.Contents!.length > 1 ||
+      info.Contents![0].Key?.indexOf('/') !== -1
+    ) {
+      oldFileName = oldFileName + '/';
+      newFileName = newFileName + '/';
+    }
+
     console.log('RENAME, old filename: ', oldFileName);
     console.log('RENAME, new filename: ', newFileName);
 
@@ -657,12 +674,15 @@ export class Drive implements Contents.IDrive {
       })
     );
 
+    const body = await fileContents.Body?.transformToString();
+    console.log('RENAME, OLD FILE CONTENTS: ', body);
+
     // create new file with same content, but different name
     const response = await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
         Key: newFileName,
-        Body: await fileContents.Body?.transformToString()
+        Body: body
       })
     );
     console.log(response);
@@ -672,7 +692,7 @@ export class Drive implements Contents.IDrive {
       path: newLocalPath,
       last_modified: fileContents.LastModified!.toISOString(),
       created: '',
-      content: await fileContents.Body!.transformToString(),
+      content: body,
       format: null,
       mimetype: newFileName.split('.')[1] === 'txt' ? 'text/plain' : '',
       size: fileContents.ContentLength!,
