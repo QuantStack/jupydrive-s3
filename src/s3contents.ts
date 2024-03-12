@@ -697,7 +697,8 @@ export class Drive implements Contents.IDrive {
     options: Partial<Contents.IModel> = {}
   ): Promise<Contents.IModel> {
     console.log('SAVE, local path: ', localPath);
-    const fileName = localPath.split('/')[1];
+    const fileName =
+      localPath.indexOf('/') === -1 ? localPath : localPath.split('/')[1];
 
     // console.log('SAVE, option content: ', typeof(options?.content), options.format)
     let body: string;

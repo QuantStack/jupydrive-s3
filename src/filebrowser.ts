@@ -11,9 +11,9 @@ import {
 } from '@jupyterlab/filebrowser';
 
 import {
-  createToolbarFactory,
-  IToolbarWidgetRegistry,
-  setToolbar
+  // createToolbarFactory,
+  IToolbarWidgetRegistry
+  // setToolbar
 } from '@jupyterlab/apputils';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator } from '@jupyterlab/translation';
@@ -32,8 +32,8 @@ namespace CommandIDs {
   export const openPath = 'filebrowser:open-path';
 }
 
-const FILE_BROWSER_FACTORY = 'DriveBrowser';
-const FILE_BROWSER_PLUGIN_ID = 'jupyter-drives-browser:file-browser-toolbar';
+// const FILE_BROWSER_FACTORY = 'DriveBrowser';
+// const FILE_BROWSER_PLUGIN_ID = 'jupyter-drives-browser:file-browser-toolbar';
 
 // create S3 drive for test purposes
 const test_drive = new Drive({
@@ -109,17 +109,17 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
       'jupyter-drives-browser:file-browser-toolbar pluging activated!'
     );
 
-    // connect the filebrowser toolbar to the settings registry for the plugin
-    setToolbar(
-      fileBrowser,
-      createToolbarFactory(
-        toolbarRegistry,
-        settingsRegistry,
-        FILE_BROWSER_FACTORY,
-        FILE_BROWSER_PLUGIN_ID,
-        translator
-      )
-    );
+    // // connect the filebrowser toolbar to the settings registry for the plugin
+    // setToolbar(
+    //   fileBrowser,
+    //   createToolbarFactory(
+    //     toolbarRegistry,
+    //     settingsRegistry,
+    //     FILE_BROWSER_FACTORY,
+    //     FILE_BROWSER_PLUGIN_ID,
+    //     translator
+    //   )
+    // );
   }
 };
 
