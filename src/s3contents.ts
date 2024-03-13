@@ -201,7 +201,8 @@ export class Drive implements Contents.IDrive {
     console.log('path: ', path);
 
     // check if we are getting the list of files from the drive
-    if (!path) {
+    if (!path || path === this._name) {
+      path = '';
       const content: Contents.IModel[] = [];
 
       const command = new ListObjectsV2Command({
