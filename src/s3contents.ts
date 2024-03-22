@@ -3,6 +3,7 @@ import { Contents, ServerConnection } from '@jupyterlab/services';
 import { URLExt } from '@jupyterlab/coreutils';
 
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   S3Client,
   ListObjectsV2Command,
@@ -198,11 +199,10 @@ export class Drive implements Contents.IDrive {
     path: string,
     options?: Contents.IFetchOptions
   ): Promise<Contents.IModel> {
-    console.log('path: ', path);
+    path = path.replace(this._name + '/', '');
 
     // check if we are getting the list of files from the drive
-    if (!path || path === this._name) {
-      path = '';
+    if (!path) {
       const content: Contents.IModel[] = [];
 
       const command = new ListObjectsV2Command({
@@ -224,10 +224,11 @@ export class Drive implements Contents.IDrive {
                 c.Key!.split('/')[c.Key!.split('/').length - 1] === ''
               ) {
                 const fileExtension = c.Key!.split('.')[1];
+                // console.log('c.key: ', c.Key)
 
                 content.push({
                   name: !fileExtension ? c.Key!.slice(0, -1) : c.Key!,
-                  path: URLExt.join(this._name, c.Key!),
+                  path: c.Key!,
                   last_modified: c.LastModified!.toISOString(),
                   created: '',
                   content: !fileExtension ? [] : null,
@@ -269,7 +270,6 @@ export class Drive implements Contents.IDrive {
     } else {
       const splitPath = path.split('/');
       const currentPath = splitPath[splitPath.length - 1];
-      // console.log('current path: ', currentPath);
 
       // listing contents of a folder
       if (currentPath.indexOf('.') === -1) {
@@ -277,7 +277,7 @@ export class Drive implements Contents.IDrive {
 
         const command = new ListObjectsV2Command({
           Bucket: this._name,
-          Prefix: currentPath
+          Prefix: currentPath + '/'
         });
 
         let isTruncated: boolean | undefined = true;
@@ -297,7 +297,7 @@ export class Drive implements Contents.IDrive {
 
                   content.push({
                     name: fileName,
-                    path: path,
+                    path: path + '/' + fileName,
                     last_modified: c.LastModified!.toISOString(),
                     created: '',
                     content: !fileExtension ? [] : null,
@@ -325,8 +325,8 @@ export class Drive implements Contents.IDrive {
         }
 
         data = {
-          name: this._name,
-          path: this._name,
+          name: currentPath,
+          path: path + '/',
           last_modified: '',
           created: '',
           content: content,
@@ -337,12 +337,11 @@ export class Drive implements Contents.IDrive {
           type: 'directory'
         };
       }
-
       // getting the contents of a specific file
       else {
         const command = new GetObjectCommand({
           Bucket: this._name,
-          Key: currentPath
+          Key: path.replace(this._name + '/', '')
         });
 
         const response = await this._s3Client.send(command);
@@ -366,7 +365,7 @@ export class Drive implements Contents.IDrive {
                 ? 'txt'
                 : currentPath.split('.')[1] === 'ipynb'
                   ? 'notebook'
-                  : 'file' // how do we know if it's directory
+                  : 'file'
           };
         }
       }
@@ -437,7 +436,7 @@ export class Drive implements Contents.IDrive {
 
     const old_data: Contents.IModel = {
       name: this._name,
-      path: this._name,
+      path: '',
       last_modified: '',
       created: '',
       content: content,
@@ -454,7 +453,7 @@ export class Drive implements Contents.IDrive {
         const response = await this.s3Client.send(
           new PutObjectCommand({
             Bucket: this._name,
-            Key: name,
+            Key: options.path ? options.path + '/' + name : name,
             Body: body
           })
         );
@@ -464,7 +463,7 @@ export class Drive implements Contents.IDrive {
         const newFileContents = await this._s3Client.send(
           new GetObjectCommand({
             Bucket: this._name,
-            Key: name
+            Key: options.path ? options.path + '/' + name : name
           })
         );
 
@@ -486,7 +485,7 @@ export class Drive implements Contents.IDrive {
         const response = await this.s3Client.send(
           new PutObjectCommand({
             Bucket: this._name,
-            Key: name + '/',
+            Key: options.path ? options.path + '/' + name + '/' : name + '/',
             Body: body
           })
         );
@@ -579,30 +578,62 @@ export class Drive implements Contents.IDrive {
    */
   async delete(localPath: string): Promise<void> {
     console.log('DELETE, local path: ', localPath);
-    let fileName = localPath.split('/')[1];
 
+    // check if we are dealing with a directory
     const info = await this.s3Client.send(
       new ListObjectsV2Command({
         Bucket: this._name,
-        Prefix: fileName
+        Prefix: localPath
       })
     );
 
-    // check if we are dealing with a directory
+    let isDir = 0;
     if (
       info.Contents!.length > 1 ||
-      info.Contents![0].Key?.indexOf('/') !== -1
+      info.Contents![0].Key![info.Contents![0].Key!.length - 1] === '/'
     ) {
-      fileName = fileName + '/';
+      localPath = localPath + '/';
+      isDir = 1;
     }
+    console.log('DELETE, local path: ', localPath);
 
     const response = await this.s3Client.send(
       new DeleteObjectCommand({
         Bucket: this._name,
-        Key: fileName
+        Key: localPath
       })
     );
     console.log('DELETE, response: ', response);
+
+    // if we are dealing with a directory, delete files inside it
+    if (isDir) {
+      // get list of content from deleted directory
+      const command = new ListObjectsV2Command({
+        Bucket: this._name,
+        Prefix: localPath
+      });
+
+      let isTruncated: boolean | undefined = true;
+
+      while (isTruncated) {
+        const { Contents, IsTruncated, NextContinuationToken } =
+          await this._s3Client.send(command);
+        console.log(Contents);
+
+        if (Contents) {
+          Contents.forEach(c => {
+            const fileName = c.Key!.split('/')[c.Key!.split.length - 1];
+            console.log('DELETE, filename: ', fileName);
+            console.log('DELETE, key: ', c.Key);
+            this.delete_file(c.Key!);
+          });
+        }
+        if (isTruncated) {
+          isTruncated = IsTruncated;
+        }
+        command.input.ContinuationToken = NextContinuationToken;
+      }
+    }
 
     this._fileChanged.emit({
       type: 'delete',
@@ -629,41 +660,38 @@ export class Drive implements Contents.IDrive {
     newLocalPath: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    console.log('RENAME, old local path: ', oldLocalPath);
-    console.log('RENAME, new local path: ', newLocalPath);
-    let oldFileName =
-      oldLocalPath.indexOf('/') >= 0
-        ? oldLocalPath.split('/')[1]
-        : oldLocalPath;
-    let newFileName =
+    const newFileName =
       newLocalPath.indexOf('/') >= 0
-        ? newLocalPath.split('/')[1]
+        ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
         : newLocalPath;
 
     // check if we are dealing with a directory
     const info = await this.s3Client.send(
       new ListObjectsV2Command({
         Bucket: this._name,
-        Prefix: oldFileName
+        Prefix: oldLocalPath
       })
     );
+    console.log(info);
 
+    let isDir = 0;
     if (
       info.Contents!.length > 1 ||
-      info.Contents![0].Key?.indexOf('/') !== -1
+      info.Contents![0].Key![info.Contents![0].Key!.length - 1] === '/'
     ) {
-      oldFileName = oldFileName + '/';
-      newFileName = newFileName + '/';
+      oldLocalPath = oldLocalPath + '/';
+      newLocalPath = newLocalPath + '/';
+      isDir = 1;
     }
 
-    console.log('RENAME, old filename: ', oldFileName);
-    console.log('RENAME, new filename: ', newFileName);
+    console.log('RENAME, old path: ', oldLocalPath);
+    console.log('RENAME, new path: ', newLocalPath);
 
     // retrieve information of old file
     const fileContents = await this._s3Client.send(
       new GetObjectCommand({
         Bucket: this._name,
-        Key: oldFileName
+        Key: oldLocalPath
       })
     );
 
@@ -671,7 +699,7 @@ export class Drive implements Contents.IDrive {
     await this._s3Client.send(
       new DeleteObjectCommand({
         Bucket: this._name,
-        Key: oldFileName
+        Key: oldLocalPath
       })
     );
 
@@ -682,18 +710,46 @@ export class Drive implements Contents.IDrive {
     const response = await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
-        Key: newFileName,
+        Key: newLocalPath,
         Body: body
       })
     );
     console.log(response);
+
+    // in the case of renaming a directory, move files to new location
+    if (isDir) {
+      // get list of content from old directory
+      const command = new ListObjectsV2Command({
+        Bucket: this._name,
+        Prefix: oldLocalPath
+      });
+
+      let isTruncated: boolean | undefined = true;
+
+      while (isTruncated) {
+        const { Contents, IsTruncated, NextContinuationToken } =
+          await this._s3Client.send(command);
+        console.log(Contents);
+
+        if (Contents) {
+          Contents.forEach(c => {
+            const fileName = c.Key!.split('/')[c.Key!.split.length - 1];
+            this.copy_file(fileName, oldLocalPath, newLocalPath);
+          });
+        }
+        if (isTruncated) {
+          isTruncated = IsTruncated;
+        }
+        command.input.ContinuationToken = NextContinuationToken;
+      }
+    }
 
     const data = {
       name: newFileName,
       path: newLocalPath,
       last_modified: fileContents.LastModified!.toISOString(),
       created: '',
-      content: body,
+      content: isDir ? [] : body,
       format: null,
       mimetype: newFileName.split('.')[1] === 'txt' ? 'text/plain' : '',
       size: fileContents.ContentLength!,
@@ -703,7 +759,9 @@ export class Drive implements Contents.IDrive {
           ? 'txt'
           : newFileName.split('.')[1] === 'ipynb'
             ? 'notebook'
-            : 'file'
+            : isDir
+              ? 'directory'
+              : 'file'
     };
 
     this._fileChanged.emit({
@@ -736,7 +794,9 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     console.log('SAVE, local path: ', localPath);
     const fileName =
-      localPath.indexOf('/') === -1 ? localPath : localPath.split('/')[1];
+      localPath.indexOf('/') === -1
+        ? localPath
+        : localPath.split('/')[localPath.split.length - 1];
 
     // console.log('SAVE, option content: ', typeof(options?.content), options.format)
     let body: string;
@@ -752,7 +812,7 @@ export class Drive implements Contents.IDrive {
     const response = await this._s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
-        Key: fileName,
+        Key: localPath,
         Body: body,
         CacheControl: 'no-cache'
       })
@@ -763,7 +823,7 @@ export class Drive implements Contents.IDrive {
     const info = await this._s3Client.send(
       new GetObjectCommand({
         Bucket: this._name,
-        Key: fileName
+        Key: localPath
       })
     );
 
@@ -1048,6 +1108,41 @@ export class Drive implements Contents.IDrive {
    */
   deleteCheckpoint(path: string, checkpointID: string): Promise<void> {
     return Promise.reject('Read only');
+  }
+
+  /**
+   * Helping function for copying the files inside a directory
+   * to a new location, in the case of renaming a directory.
+   *
+   * @param fileName name of file to be copied
+   * @param oldPath old path of file
+   * @param newPath new path of file
+   */
+  async copy_file(fileName: string, oldPath: string, newPath: string) {
+    const copy_response = await this._s3Client.send(
+      new CopyObjectCommand({
+        Bucket: this._name,
+        CopySource: this._name + '/' + oldPath + fileName,
+        Key: newPath + fileName
+      })
+    );
+    console.log('RENAME, copy resp: ', copy_response);
+  }
+
+  /**
+   * Helping functions for deleting files inside
+   * a directory, in the case of deleting the directory.
+   *
+   * @param filePath complete path of file to delete
+   */
+  async delete_file(filePath: string) {
+    const delete_response = await this.s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: this._name,
+        Key: filePath
+      })
+    );
+    console.log('DELETE, file inside directory response: ', delete_response);
   }
 
   private _serverSettings: ServerConnection.ISettings;
