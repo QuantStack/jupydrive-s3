@@ -216,38 +216,36 @@ export class Drive implements Contents.IDrive {
           await this._s3Client.send(command);
 
         if (Contents) {
-          if (Contents) {
-            Contents.forEach(c => {
-              // checking if we are dealing with the file inside a folder
-              if (
-                c.Key!.split('/').length === 1 ||
-                c.Key!.split('/')[c.Key!.split('/').length - 1] === ''
-              ) {
-                const fileExtension = c.Key!.split('.')[1];
-                // console.log('c.key: ', c.Key)
+          Contents.forEach(c => {
+            // checking if we are dealing with the file inside a folder
+            if (
+              c.Key!.split('/').length === 1 ||
+              c.Key!.split('/')[c.Key!.split('/').length - 1] === ''
+            ) {
+              const fileExtension = c.Key!.split('.')[1];
+              // console.log('c.key: ', c.Key)
 
-                content.push({
-                  name: !fileExtension ? c.Key!.slice(0, -1) : c.Key!,
-                  path: c.Key!,
-                  last_modified: c.LastModified!.toISOString(),
-                  created: '',
-                  content: !fileExtension ? [] : null,
-                  format: !fileExtension ? 'json' : null,
-                  mimetype: fileExtension === 'txt' ? 'text/plain' : '',
-                  size: c.Size!,
-                  writable: true,
-                  type:
-                    fileExtension === 'txt'
-                      ? 'txt'
-                      : fileExtension === 'ipynb'
-                        ? 'notebook'
-                        : !fileExtension
-                          ? 'directory'
-                          : 'file'
-                });
-              }
-            });
-          }
+              content.push({
+                name: !fileExtension ? c.Key!.slice(0, -1) : c.Key!,
+                path: c.Key!,
+                last_modified: c.LastModified!.toISOString(),
+                created: '',
+                content: !fileExtension ? [] : null,
+                format: !fileExtension ? 'json' : null,
+                mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+                size: c.Size!,
+                writable: true,
+                type:
+                  fileExtension === 'txt'
+                    ? 'txt'
+                    : fileExtension === 'ipynb'
+                      ? 'notebook'
+                      : !fileExtension
+                        ? 'directory'
+                        : 'file'
+              });
+            }
+          });
         }
         if (isTruncated) {
           isTruncated = IsTruncated;
@@ -288,35 +286,33 @@ export class Drive implements Contents.IDrive {
           console.log(Contents);
 
           if (Contents) {
-            if (Contents) {
-              Contents.forEach(c => {
-                // checking if we are dealing with the file inside a folder
-                if (c.Key !== currentPath + '/') {
-                  const fileExtension = c.Key!.split('.')[1];
-                  const fileName = c.Key!.split('/')[1];
+            Contents.forEach(c => {
+              // checking if we are dealing with the file inside a folder
+              if (c.Key !== currentPath + '/') {
+                const fileExtension = c.Key!.split('.')[1];
+                const fileName = c.Key!.split('/')[1];
 
-                  content.push({
-                    name: fileName,
-                    path: path + '/' + fileName,
-                    last_modified: c.LastModified!.toISOString(),
-                    created: '',
-                    content: !fileExtension ? [] : null,
-                    format: !fileExtension ? 'json' : null,
-                    mimetype: fileExtension === 'txt' ? 'text/plain' : '',
-                    size: c.Size!,
-                    writable: true,
-                    type:
-                      fileExtension === 'txt'
-                        ? 'txt'
-                        : fileExtension === 'ipynb'
-                          ? 'notebook'
-                          : !fileExtension
-                            ? 'directory'
-                            : 'file'
-                  });
-                }
-              });
-            }
+                content.push({
+                  name: fileName,
+                  path: path + '/' + fileName,
+                  last_modified: c.LastModified!.toISOString(),
+                  created: '',
+                  content: !fileExtension ? [] : null,
+                  format: !fileExtension ? 'json' : null,
+                  mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+                  size: c.Size!,
+                  writable: true,
+                  type:
+                    fileExtension === 'txt'
+                      ? 'txt'
+                      : fileExtension === 'ipynb'
+                        ? 'notebook'
+                        : !fileExtension
+                          ? 'directory'
+                          : 'file'
+                });
+              }
+            });
           }
           if (isTruncated) {
             isTruncated = IsTruncated;
@@ -402,31 +398,29 @@ export class Drive implements Contents.IDrive {
         await this._s3Client.send(command);
 
       if (Contents) {
-        if (Contents) {
-          Contents.forEach(c => {
-            const fileExtension = c.Key!.split('.')[1];
+        Contents.forEach(c => {
+          const fileExtension = c.Key!.split('.')[1];
 
-            content.push({
-              name: c.Key!,
-              path: URLExt.join(this._name, c.Key!),
-              last_modified: c.LastModified!.toISOString(),
-              created: '',
-              content: !fileExtension ? [] : null,
-              format: !fileExtension ? 'json' : null,
-              mimetype: fileExtension === 'txt' ? 'text/plain' : '',
-              size: c.Size!,
-              writable: true,
-              type:
-                fileExtension === 'txt'
-                  ? 'txt'
-                  : fileExtension === 'ipynb'
-                    ? 'notebook'
-                    : !fileExtension
-                      ? 'directory'
-                      : 'file'
-            });
+          content.push({
+            name: c.Key!,
+            path: URLExt.join(this._name, c.Key!),
+            last_modified: c.LastModified!.toISOString(),
+            created: '',
+            content: !fileExtension ? [] : null,
+            format: !fileExtension ? 'json' : null,
+            mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+            size: c.Size!,
+            writable: true,
+            type:
+              fileExtension === 'txt'
+                ? 'txt'
+                : fileExtension === 'ipynb'
+                  ? 'notebook'
+                  : !fileExtension
+                    ? 'directory'
+                    : 'file'
           });
-        }
+        });
       }
       if (isTruncated) {
         isTruncated = IsTruncated;
