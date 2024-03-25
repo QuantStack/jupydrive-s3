@@ -8,7 +8,8 @@ import {
   S3Client,
   ListObjectsV2Command,
   GetObjectCommand,
-  PutObjectCommand
+  PutObjectCommand,
+  HeadObjectCommand
 } from '@aws-sdk/client-s3';
 
 import { getBucketRegion } from './s3';
@@ -223,7 +224,6 @@ export class Drive implements Contents.IDrive {
               c.Key!.split('/')[c.Key!.split('/').length - 1] === ''
             ) {
               const fileExtension = c.Key!.split('.')[1];
-              // console.log('c.key: ', c.Key)
 
               content.push({
                 name: !fileExtension ? c.Key!.slice(0, -1) : c.Key!,
@@ -654,7 +654,7 @@ export class Drive implements Contents.IDrive {
     newLocalPath: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    const newFileName =
+    let newFileName =
       newLocalPath.indexOf('/') >= 0
         ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
         : newLocalPath;
@@ -668,14 +668,14 @@ export class Drive implements Contents.IDrive {
     );
     console.log(info);
 
-    let isDir = 0;
+    let isDir: boolean = false;
     if (
       info.Contents!.length > 1 ||
       info.Contents![0].Key![info.Contents![0].Key!.length - 1] === '/'
     ) {
       oldLocalPath = oldLocalPath + '/';
       newLocalPath = newLocalPath + '/';
-      isDir = 1;
+      isDir = true;
     }
 
     console.log('RENAME, old path: ', oldLocalPath);
@@ -697,8 +697,31 @@ export class Drive implements Contents.IDrive {
       })
     );
 
+    // check if file with new name already exists
+    try {
+      await this._s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this._name,
+          Key: newLocalPath
+        })
+      );
+      console.log('File name already exists!');
+      newFileName = await this.incrementName(newLocalPath, isDir);
+      if (isDir) {
+        newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
+      }
+      newLocalPath = isDir
+        ? newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
+          newFileName +
+          '/'
+        : newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
+          newFileName;
+    } catch (e) {
+      // function throws error as the file name doesn't exist
+      console.log("Name doesn't exist!");
+    }
+
     const body = await fileContents.Body?.transformToString();
-    console.log('RENAME, OLD FILE CONTENTS: ', body);
 
     // create new file with same content, but different name
     const response = await this.s3Client.send(
@@ -765,6 +788,75 @@ export class Drive implements Contents.IDrive {
     });
     Contents.validateContentsModel(data);
     return data;
+  }
+
+  /**
+   * Helping function to increment name of existing files or directorties.
+   *
+   * @param localPath - Path to file
+   */
+  async incrementName(localPath: string, isDir: boolean) {
+    let counter: number = 0;
+    let fileExtension: string = '';
+    let originalName: string = '';
+
+    // check if we are dealing with a directory
+    if (isDir) {
+      localPath = localPath.substring(0, localPath.length - 1);
+      originalName = localPath.split('/')[localPath.split('/').length - 1];
+    }
+    // dealing with a file
+    else {
+      // extract name from path
+      originalName = localPath.split('/')[localPath.split('/').length - 1];
+      // eliminate file extension
+      fileExtension =
+        originalName.split('.')[originalName.split('.').length - 1];
+      originalName =
+        originalName.split('.')[originalName.split('.').length - 2];
+    }
+
+    const command = new ListObjectsV2Command({
+      Bucket: this._name,
+      Prefix: localPath.substring(0, localPath.lastIndexOf('/'))
+    });
+
+    let isTruncated: boolean | undefined = true;
+
+    while (isTruncated) {
+      const { Contents, IsTruncated, NextContinuationToken } =
+        await this._s3Client.send(command);
+
+      if (Contents) {
+        Contents.forEach(c => {
+          // check if we are dealing with a directory
+          if (c.Key![c.Key!.length - 1] === '/') {
+            c.Key! = c.Key!.substring(0, c.Key!.length - 1);
+          }
+          // check if the name of the file or directory matches the original name
+          if (
+            c
+              .Key!.substring(
+                c.Key!.lastIndexOf('/') + 1,
+                c.Key!.lastIndexOf('/') + 1 + originalName.length
+              )
+              .includes(originalName)
+          ) {
+            counter += 1;
+          }
+        });
+      }
+      if (isTruncated) {
+        isTruncated = IsTruncated;
+      }
+      command.input.ContinuationToken = NextContinuationToken;
+    }
+
+    const newName = isDir
+      ? originalName + counter
+      : originalName + counter + '.' + fileExtension;
+
+    return newName;
   }
 
   /**
