@@ -221,7 +221,7 @@ export class Drive implements Contents.IDrive {
             // checking if we are dealing with the file inside a folder
             if (
               c.Key!.split('/').length === 1 ||
-              c.Key!.split('/')[c.Key!.split('/').length - 1] === ''
+              c.Key!.split('/')[1] === ''
             ) {
               const fileExtension = c.Key!.split('.')[1];
 
