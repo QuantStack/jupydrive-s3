@@ -219,30 +219,22 @@ export class Drive implements Contents.IDrive {
         if (Contents) {
           Contents.forEach(c => {
             // checking if we are dealing with the file inside a folder
-            if (
-              c.Key!.split('/').length === 1 ||
-              c.Key!.split('/')[1] === ''
-            ) {
-              const fileExtension = c.Key!.split('.')[1];
+            if (c.Key!.split('/').length === 1 || c.Key!.split('/')[1] === '') {
+              const [fileType, fileMimeType, fileFormat] = this.getFileType(
+                c.Key!.split('.')[1]
+              );
 
               content.push({
-                name: !fileExtension ? c.Key!.slice(0, -1) : c.Key!,
+                name: !c.Key!.split('.')[1] ? c.Key!.slice(0, -1) : c.Key!,
                 path: c.Key!,
                 last_modified: c.LastModified!.toISOString(),
                 created: '',
-                content: !fileExtension ? [] : null,
-                format: !fileExtension ? 'json' : null,
-                mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+                content: !c.Key!.split('.')[1] ? [] : null,
+                format: fileFormat as Contents.FileFormat,
+                mimetype: fileMimeType,
                 size: c.Size!,
                 writable: true,
-                type:
-                  fileExtension === 'txt'
-                    ? 'txt'
-                    : fileExtension === 'ipynb'
-                      ? 'notebook'
-                      : !fileExtension
-                        ? 'directory'
-                        : 'file'
+                type: fileType
               });
             }
           });
@@ -289,27 +281,22 @@ export class Drive implements Contents.IDrive {
             Contents.forEach(c => {
               // checking if we are dealing with the file inside a folder
               if (c.Key !== currentPath + '/') {
-                const fileExtension = c.Key!.split('.')[1];
                 const fileName = c.Key!.split('/')[1];
+                const [fileType, fileMimeType, fileFormat] = this.getFileType(
+                  c.Key!.split('.')[1]
+                );
 
                 content.push({
                   name: fileName,
                   path: path + '/' + fileName,
                   last_modified: c.LastModified!.toISOString(),
                   created: '',
-                  content: !fileExtension ? [] : null,
-                  format: !fileExtension ? 'json' : null,
-                  mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+                  content: !c.Key!.split('.')[1] ? [] : null,
+                  format: fileFormat as Contents.FileFormat,
+                  mimetype: fileMimeType,
                   size: c.Size!,
                   writable: true,
-                  type:
-                    fileExtension === 'txt'
-                      ? 'txt'
-                      : fileExtension === 'ipynb'
-                        ? 'notebook'
-                        : !fileExtension
-                          ? 'directory'
-                          : 'file'
+                  type: fileType
                 });
               }
             });
@@ -345,6 +332,9 @@ export class Drive implements Contents.IDrive {
         if (response) {
           const fileContents: string = await response.Body!.transformToString();
           const date: string = response.LastModified!.toISOString();
+          const [fileType, fileMimeType, fileFormat] = this.getFileType(
+            currentPath.split('.')[1]
+          );
 
           data = {
             name: currentPath,
@@ -352,21 +342,16 @@ export class Drive implements Contents.IDrive {
             last_modified: date,
             created: '',
             content: fileContents,
-            format: null,
-            mimetype: currentPath.split('.')[1] === 'txt' ? 'text/plain' : '',
+            format: fileFormat as Contents.FileFormat,
+            mimetype: fileMimeType,
             size: response.ContentLength!,
             writable: true,
-            type:
-              currentPath.split('.')[1] === 'txt'
-                ? 'txt'
-                : currentPath.split('.')[1] === 'ipynb'
-                  ? 'notebook'
-                  : 'file'
+            type: fileType
           };
         }
       }
     }
-
+    console.log(data);
     Contents.validateContentsModel(data);
     return data;
   }
@@ -399,26 +384,21 @@ export class Drive implements Contents.IDrive {
 
       if (Contents) {
         Contents.forEach(c => {
-          const fileExtension = c.Key!.split('.')[1];
+          const [fileType, fileMimeType, fileFormat] = this.getFileType(
+            c.Key!.split('.')[1]
+          );
 
           content.push({
             name: c.Key!,
             path: URLExt.join(this._name, c.Key!),
             last_modified: c.LastModified!.toISOString(),
             created: '',
-            content: !fileExtension ? [] : null,
-            format: !fileExtension ? 'json' : null,
-            mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+            content: !c.Key!.split('.')[1] ? [] : null,
+            format: fileFormat as Contents.FileFormat,
+            mimetype: fileMimeType,
             size: c.Size!,
             writable: true,
-            type:
-              fileExtension === 'txt'
-                ? 'txt'
-                : fileExtension === 'ipynb'
-                  ? 'notebook'
-                  : !fileExtension
-                    ? 'directory'
-                    : 'file'
+            type: fileType
           });
         });
       }
@@ -460,6 +440,9 @@ export class Drive implements Contents.IDrive {
             Key: options.path ? options.path + '/' + name : name
           })
         );
+        const [fileType, fileMimeType, fileFormat] = this.getFileType(
+          options.ext!
+        );
 
         data = {
           name: name,
@@ -467,11 +450,11 @@ export class Drive implements Contents.IDrive {
           last_modified: newFileContents.LastModified!.toISOString(),
           created: Date(),
           content: body,
-          format: null,
-          mimetype: options.ext === 'txt' ? 'text/plain' : '',
+          format: fileFormat as Contents.FileFormat,
+          mimetype: fileMimeType,
           size: newFileContents.ContentLength,
           writable: true,
-          type: options.type
+          type: fileType
         };
       } else {
         // creating a new directory
@@ -492,7 +475,7 @@ export class Drive implements Contents.IDrive {
           created: new Date().toISOString(),
           content: [],
           format: 'json',
-          mimetype: '',
+          mimetype: 'text/directory',
           size: undefined,
           writable: true,
           type: options.type
@@ -760,6 +743,9 @@ export class Drive implements Contents.IDrive {
         command.input.ContinuationToken = NextContinuationToken;
       }
     }
+    const [fileType, fileMimeType, fileFormat] = this.getFileType(
+      newFileName!.split('.')[1]
+    );
 
     const data = {
       name: newFileName,
@@ -767,18 +753,11 @@ export class Drive implements Contents.IDrive {
       last_modified: fileContents.LastModified!.toISOString(),
       created: '',
       content: isDir ? [] : body,
-      format: null,
-      mimetype: newFileName.split('.')[1] === 'txt' ? 'text/plain' : '',
+      format: fileFormat as Contents.FileFormat,
+      mimetype: fileMimeType,
       size: fileContents.ContentLength!,
       writable: true,
-      type:
-        newFileName.split('.')[1] === 'txt'
-          ? 'txt'
-          : newFileName.split('.')[1] === 'ipynb'
-            ? 'notebook'
-            : isDir
-              ? 'directory'
-              : 'file'
+      type: fileType
     };
 
     this._fileChanged.emit({
@@ -913,23 +892,21 @@ export class Drive implements Contents.IDrive {
       })
     );
 
-    console.log(fileName.split('.')[1]);
+    const [fileType, fileMimeType, fileFormat] = this.getFileType(
+      fileName.split('.')[1]
+    );
+
     data = {
       name: fileName,
       path: localPath,
       last_modified: info.LastModified!.toISOString(),
       created: '',
       content: body,
-      format: null,
-      mimetype: fileName.split('.')[1] === 'txt' ? 'text/plain' : '',
+      format: fileFormat as Contents.FileFormat,
+      mimetype: fileMimeType,
       size: info.ContentLength!,
       writable: true,
-      type:
-        fileName.split('.')[1] === 'txt'
-          ? 'txt'
-          : fileName.split('.')[1] === 'ipynb'
-            ? 'notebook'
-            : 'file'
+      type: fileType
     };
     // console.log('body: ', body)
     // console.log('info.body: ', await info.Body?.transformToString())
@@ -1044,26 +1021,21 @@ export class Drive implements Contents.IDrive {
       if (Contents) {
         if (Contents) {
           Contents.forEach(c => {
-            const fileExtension = c.Key!.split('.')[1];
+            const [fileType, fileMimeType, fileFormat] = this.getFileType(
+              c.Key!.split('.')[1]
+            );
 
             content.push({
               name: c.Key!,
               path: URLExt.join(this._name, c.Key!),
               last_modified: c.LastModified!.toISOString(),
               created: '',
-              content: !fileExtension ? [] : null,
-              format: !fileExtension ? 'json' : null,
-              mimetype: fileExtension === 'txt' ? 'text/plain' : '',
+              content: !c.Key!.split('.')[1] ? [] : null,
+              format: fileFormat as Contents.FileFormat,
+              mimetype: fileMimeType,
               size: c.Size!,
               writable: true,
-              type:
-                fileExtension === 'txt'
-                  ? 'txt'
-                  : fileExtension === 'ipynb'
-                    ? 'notebook'
-                    : !fileExtension
-                      ? 'directory'
-                      : 'file'
+              type: fileType
             });
           });
         }
@@ -1114,6 +1086,9 @@ export class Drive implements Contents.IDrive {
         Key: newFileName
       })
     );
+    const [fileType, fileMimeType, fileFormat] = this.getFileType(
+      newFileName.split('.')[1]
+    );
 
     data = {
       name: newFileName,
@@ -1121,16 +1096,11 @@ export class Drive implements Contents.IDrive {
       last_modified: newFileContents.LastModified!.toISOString(),
       created: new Date().toISOString(),
       content: await newFileContents.Body!.transformToString(),
-      format: null,
-      mimetype: newFileName.split('.')[1] === 'txt' ? 'text/plain' : '',
+      format: fileFormat as Contents.FileFormat,
+      mimetype: fileMimeType,
       size: newFileContents.ContentLength!,
       writable: true,
-      type:
-        newFileName.split('.')[1] === 'txt'
-          ? 'txt'
-          : newFileName.split('.')[1] === 'ipynb'
-            ? 'notebook'
-            : 'file' // how do we know if it's directory
+      type: fileType
     };
 
     this._fileChanged.emit({
@@ -1229,6 +1199,136 @@ export class Drive implements Contents.IDrive {
       })
     );
     console.log('DELETE, file inside directory response: ', delete_response);
+  }
+
+  /**
+   * Helping function to define file type, mimetype and format based on file extension.
+   * @param extension file extension (e.g.: txt, ipynb, csv)
+   * @returns
+   */
+  getFileType(extension: string) {
+    let fileType: string;
+    let fileMimetype: string;
+    let fileFormat: Contents.FileFormat = 'text';
+
+    switch (extension) {
+      case 'txt':
+        fileType = 'text';
+        fileMimetype = 'text/plain';
+        break;
+      case 'ipynb':
+        fileType = 'notebook';
+        fileMimetype = 'application/x-ipynb+json';
+        break;
+      case 'md':
+        fileType = 'markdown';
+        fileMimetype = 'text/markdown';
+        break;
+      case 'pdf':
+        fileType = 'PDF';
+        fileMimetype = 'application/pdf';
+        break;
+      case 'py':
+        fileType = 'python';
+        fileMimetype = 'text/x-python';
+        break;
+      case 'json':
+        fileType = 'json';
+        fileMimetype = 'application/json';
+        break;
+      case 'jsonl':
+        fileType = 'jsonl';
+        fileMimetype = 'test/jsonl';
+        break;
+      case 'ndjson':
+        fileType = 'jsonl';
+        fileMimetype = 'application/jsonl';
+        break;
+      case 'jl':
+        fileType = 'julia';
+        fileMimetype = 'text/x-julia';
+        break;
+      case 'csv':
+        fileType = 'csv';
+        fileMimetype = 'text/csv';
+        break;
+      case 'tsv':
+        fileType = 'tsv';
+        fileMimetype = 'text/csv';
+        break;
+      case 'R':
+        fileType = 'r';
+        fileMimetype = 'text/x-rsrc';
+        break;
+      case 'yaml':
+        fileType = 'yaml';
+        fileMimetype = 'text/x-yaml';
+        break;
+      case 'yml':
+        fileType = 'yaml';
+        fileMimetype = 'text/x-yaml';
+        break;
+      case 'svg':
+        fileType = 'svg';
+        fileMimetype = 'image/svg+xml';
+        fileFormat = 'base64';
+        break;
+      case 'tif':
+        fileType = 'tiff';
+        fileMimetype = 'image/tiff';
+        fileFormat = 'base64';
+        break;
+      case 'tiff':
+        fileType = 'tiff';
+        fileMimetype = 'image/tiff';
+        fileFormat = 'base64';
+        break;
+      case 'jpg':
+        fileType = 'jpeg';
+        fileMimetype = 'image/jpeg';
+        fileFormat = 'base64';
+        break;
+      case 'jpeg':
+        fileType = 'jpeg';
+        fileMimetype = 'image/jpeg';
+        fileFormat = 'base64';
+        break;
+      case 'gif':
+        fileType = 'gif';
+        fileMimetype = 'image/gif';
+        fileFormat = 'base64';
+        break;
+      case 'png':
+        fileType = 'png';
+        fileMimetype = 'image/png';
+        fileFormat = 'base64';
+        break;
+      case 'bmp':
+        fileType = 'bmp';
+        fileMimetype = 'image/bmp';
+        fileFormat = 'base64';
+        break;
+      case 'webp':
+        fileType = 'webp';
+        fileMimetype = 'image/webp';
+        fileFormat = 'base64';
+        break;
+      case 'html':
+        fileType = 'html';
+        fileMimetype = 'text/html';
+        break;
+      case undefined:
+        fileType = 'directory';
+        fileMimetype = 'text/directory';
+        fileFormat = 'json';
+        break;
+      default:
+        fileType = 'text';
+        fileMimetype = 'text/plain';
+        break;
+    }
+
+    return [fileType, fileMimetype, fileFormat];
   }
 
   private _serverSettings: ServerConnection.ISettings;
