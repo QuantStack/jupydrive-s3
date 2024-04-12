@@ -9,6 +9,7 @@ import {
   ListObjectsV2Command,
   GetBucketLocationCommand,
   GetObjectCommand,
+  PutBucketCorsCommand,
   PutObjectCommand,
   HeadObjectCommand
 } from '@aws-sdk/client-s3';
@@ -1124,6 +1125,37 @@ export class Drive implements Contents.IDrive {
       })
     );
     console.log('DELETE, file inside directory response: ', delete_response);
+  }
+
+  /**
+   * Set bucket CORS rules to allow the operations within the extension.
+   * @param name bucket name
+   */
+  async setBucketCORS(name: string) {
+    console.log('SET BUCKET CORS, name: ', name);
+    const response = await this.s3Client.send(
+      new PutBucketCorsCommand({
+        Bucket: name,
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedHeaders: ['*'],
+              AllowedMethods: ['GET', 'PUT', 'DELETE', 'HEAD'],
+              // Allow only requests from the specified origin.
+              AllowedOrigins: ['http://localhost:*'],
+              // Allow the entity tag (ETag) header to be returned in the response. The ETag header
+              // The entity tag represents a specific version of the object. The ETag reflects
+              // changes only to the contents of an object, not its metadata.
+              ExposeHeaders: ['ETag'],
+              // How long the requesting browser should cache the preflight response. After
+              // this time, the preflight request will have to be made again.
+              MaxAgeSeconds: 3600
+            }
+          ]
+        }
+      })
+    );
+    console.log('SET BUCKET CORS, response: ', response);
   }
 
   /**
