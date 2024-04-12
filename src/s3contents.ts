@@ -351,7 +351,7 @@ export class Drive implements Contents.IDrive {
         }
       }
     }
-    console.log(data);
+
     Contents.validateContentsModel(data);
     return data;
   }
@@ -831,9 +831,8 @@ export class Drive implements Contents.IDrive {
       command.input.ContinuationToken = NextContinuationToken;
     }
 
-    const newName = isDir
-      ? originalName + counter
-      : originalName + counter + '.' + fileExtension;
+    let newName = counter ? originalName + counter : originalName;
+    newName = isDir ? newName : newName + '.' + fileExtension;
 
     return newName;
   }
@@ -927,65 +926,32 @@ export class Drive implements Contents.IDrive {
    *
    * @param path - The original file path.
    *
-   * @param toDir - The destination directory path.
+   * @param isDir - The boolean marking if we are dealing with a file or directory.
    *
-   * @returns A promise which resolves with the new contents model when the
+   * @returns A promise which resolves with the new name when the
    *  file is copied.
    */
-  incrementCopyName(contents: Contents.IModel, copiedItemPath: string): string {
-    const content: Array<Contents.IModel> = contents.content;
-    let name: string = '';
-    let countText = 0;
-    let countDir = 0;
-    let countNotebook = 0;
-    let ext = undefined;
-    const list1 = copiedItemPath.split('/');
-    const copiedItemName = list1[list1.length - 1];
+  async incrementCopyName(copiedItemPath: string, isDir: boolean) {
+    // extracting original file name
+    const originalFileName =
+      copiedItemPath.split('/')[copiedItemPath.split('/').length - 1];
 
-    const list2 = copiedItemName.split('.');
-    let rootName = list2[0];
+    // constructing new file name and path with -Copy string
+    const newFileName =
+      originalFileName.split('.')[0] +
+      '-Copy.' +
+      originalFileName.split('.')[1];
+    const newFilePath = isDir
+      ? copiedItemPath.substring(0, copiedItemPath.lastIndexOf('/') + 1) +
+        newFileName +
+        '/'
+      : copiedItemPath.substring(0, copiedItemPath.lastIndexOf('/') + 1) +
+        newFileName;
 
-    content.forEach(item => {
-      if (item.name.includes(rootName) && item.name.includes('.txt')) {
-        ext = '.txt';
-        if (rootName.includes('-Copy')) {
-          const list3 = rootName.split('-Copy');
-          countText = parseInt(list3[1]) + 1;
-          rootName = list3[0];
-        } else {
-          countText = countText + 1;
-        }
-      }
-      if (item.name.includes(rootName) && item.name.includes('.ipynb')) {
-        ext = '.ipynb';
-        if (rootName.includes('-Copy')) {
-          const list3 = rootName.split('-Copy');
-          countNotebook = parseInt(list3[1]) + 1;
-          rootName = list3[0];
-        } else {
-          countNotebook = countNotebook + 1;
-        }
-      } else if (item.name.includes(rootName)) {
-        if (rootName.includes('-Copy')) {
-          const list3 = rootName.split('-Copy');
-          countDir = parseInt(list3[1]) + 1;
-          rootName = list3[0];
-        } else {
-          countDir = countDir + 1;
-        }
-      }
-    });
+    // getting incremented name of Copy in case of duplicates
+    const incrementedName = await this.incrementName(newFilePath, isDir);
 
-    if (ext === '.txt') {
-      name = rootName + '-Copy' + countText + ext;
-    }
-    if (ext === 'ipynb') {
-      name = rootName + '-Copy' + countText + ext;
-    } else if (ext === undefined) {
-      name = rootName + '-Copy' + countDir;
-    }
-
-    return name;
+    return incrementedName;
   }
 
   /**
@@ -1003,87 +969,38 @@ export class Drive implements Contents.IDrive {
     toDir: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    const originalFileName = path.split('/')[1];
+    // check if we are dealing with a directory
+    const info = await this.s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: this._name,
+        Prefix: path
+      })
+    );
 
-    // retrieve information of current drive data model
-    const content: Contents.IModel[] = [];
-
-    const command = new ListObjectsV2Command({
-      Bucket: this._name
-    });
-
-    let isTruncated: boolean | undefined = true;
-
-    while (isTruncated) {
-      const { Contents, IsTruncated, NextContinuationToken } =
-        await this._s3Client.send(command);
-
-      if (Contents) {
-        if (Contents) {
-          Contents.forEach(c => {
-            const [fileType, fileMimeType, fileFormat] = this.getFileType(
-              c.Key!.split('.')[1]
-            );
-
-            content.push({
-              name: c.Key!,
-              path: URLExt.join(this._name, c.Key!),
-              last_modified: c.LastModified!.toISOString(),
-              created: '',
-              content: !c.Key!.split('.')[1] ? [] : null,
-              format: fileFormat as Contents.FileFormat,
-              mimetype: fileMimeType,
-              size: c.Size!,
-              writable: true,
-              type: fileType
-            });
-          });
-        }
-      }
-      if (isTruncated) {
-        isTruncated = IsTruncated;
-      }
-      command.input.ContinuationToken = NextContinuationToken;
+    let isDir: boolean = false;
+    if (
+      info.Contents!.length > 1 ||
+      info.Contents![0].Key![info.Contents![0].Key!.length - 1] === '/'
+    ) {
+      isDir = true;
     }
 
-    const old_data: Contents.IModel = {
-      name: this._name,
-      path: path,
-      last_modified: '',
-      created: '',
-      content: content,
-      format: 'json',
-      mimetype: '',
-      size: undefined,
-      writable: true,
-      type: 'directory'
-    };
+    const newFileName = await this.incrementCopyName(path, isDir);
 
-    const newFileName = this.incrementCopyName(old_data, path);
-
-    // retrieve information of original file
-    const oldFileContents = await this._s3Client.send(
-      new GetObjectCommand({
+    const copy_response = await this._s3Client.send(
+      new CopyObjectCommand({
         Bucket: this._name,
-        Key: originalFileName
+        CopySource: this._name + '/' + path,
+        Key: toDir !== '' ? toDir + '/' + newFileName : newFileName
       })
     );
-
-    // create a copy of the file to another location
-    const response = await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: this._name,
-        Key: toDir + '/' + newFileName,
-        Body: await oldFileContents.Body!.transformToString()
-      })
-    );
-    console.log('COPY, response: ', response);
+    console.log('COPY resp: ', copy_response);
 
     // retrieve information of new file
     const newFileContents = await this._s3Client.send(
       new GetObjectCommand({
         Bucket: this._name,
-        Key: newFileName
+        Key: toDir !== '' ? toDir + '/' + newFileName : newFileName
       })
     );
     const [fileType, fileMimeType, fileFormat] = this.getFileType(
