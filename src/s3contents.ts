@@ -271,7 +271,6 @@ export class Drive implements Contents.IDrive {
         while (isTruncated) {
           const { Contents, IsTruncated, NextContinuationToken } =
             await this._s3Client.send(command);
-          console.log(Contents);
 
           if (Contents) {
             Contents.forEach(c => {
@@ -550,8 +549,6 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves when the file is deleted.
    */
   async delete(localPath: string): Promise<void> {
-    console.log('DELETE, local path: ', localPath);
-
     // check if we are dealing with a directory
     const info = await this.s3Client.send(
       new ListObjectsV2Command({
@@ -568,7 +565,6 @@ export class Drive implements Contents.IDrive {
       localPath = localPath + '/';
       isDir = 1;
     }
-    console.log('DELETE, local path: ', localPath);
 
     const response = await this.s3Client.send(
       new DeleteObjectCommand({
@@ -591,13 +587,9 @@ export class Drive implements Contents.IDrive {
       while (isTruncated) {
         const { Contents, IsTruncated, NextContinuationToken } =
           await this._s3Client.send(command);
-        console.log(Contents);
 
         if (Contents) {
           Contents.forEach(c => {
-            const fileName = c.Key!.split('/')[c.Key!.split.length - 1];
-            console.log('DELETE, filename: ', fileName);
-            console.log('DELETE, key: ', c.Key);
             this.delete_file(c.Key!);
           });
         }
@@ -645,7 +637,6 @@ export class Drive implements Contents.IDrive {
         Prefix: oldLocalPath
       })
     );
-    console.log(info);
 
     let isDir: boolean = false;
     if (
@@ -656,9 +647,6 @@ export class Drive implements Contents.IDrive {
       newLocalPath = newLocalPath + '/';
       isDir = true;
     }
-
-    console.log('RENAME, old path: ', oldLocalPath);
-    console.log('RENAME, new path: ', newLocalPath);
 
     // retrieve information of old file
     const fileContents = await this._s3Client.send(
@@ -710,7 +698,7 @@ export class Drive implements Contents.IDrive {
         Body: body
       })
     );
-    console.log(response);
+    console.log('RENAME, response', response);
 
     // in the case of renaming a directory, move files to new location
     if (isDir) {
@@ -725,7 +713,6 @@ export class Drive implements Contents.IDrive {
       while (isTruncated) {
         const { Contents, IsTruncated, NextContinuationToken } =
           await this._s3Client.send(command);
-        console.log(Contents);
 
         if (Contents) {
           Contents.forEach(c => {
@@ -852,20 +839,16 @@ export class Drive implements Contents.IDrive {
     localPath: string,
     options: Partial<Contents.IModel> = {}
   ): Promise<Contents.IModel> {
-    console.log('SAVE, local path: ', localPath);
     const fileName =
       localPath.indexOf('/') === -1
         ? localPath
         : localPath.split('/')[localPath.split.length - 1];
 
-    // console.log('SAVE, option content: ', typeof(options?.content), options.format)
     let body: string;
     if (options.format === 'json') {
       body = JSON.stringify(options?.content, null, 2);
-      console.log('SAVE, json content: ', body);
     } else {
       body = options?.content;
-      console.log('SAVE, text content: ', body);
     }
 
     // save file with new content by overwritting existing file
@@ -903,8 +886,6 @@ export class Drive implements Contents.IDrive {
       writable: true,
       type: fileType
     };
-    // console.log('body: ', body)
-    // console.log('info.body: ', await info.Body?.transformToString())
 
     Contents.validateContentsModel(data);
 
@@ -990,7 +971,7 @@ export class Drive implements Contents.IDrive {
         Key: toDir !== '' ? toDir + '/' + newFileName : newFileName
       })
     );
-    console.log('COPY resp: ', copy_response);
+    console.log('COPY response: ', copy_response);
 
     // retrieve information of new file
     const newFileContents = await this._s3Client.send(
@@ -1084,7 +1065,6 @@ export class Drive implements Contents.IDrive {
    * @param name bucket name
    */
   async setBucketCORS(name: string) {
-    console.log('SET BUCKET CORS, name: ', name);
     const response = await this.s3Client.send(
       new PutBucketCorsCommand({
         Bucket: name,
@@ -1139,7 +1119,7 @@ export class Drive implements Contents.IDrive {
         Key: newPath + fileName
       })
     );
-    console.log('RENAME, copy resp: ', copy_response);
+    console.log('RENAME, file inside directory copy resp: ', copy_response);
   }
 
   /**
