@@ -1080,54 +1080,6 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
-   * Helping function for extracting region of bucket.
-   * @returns region of Bucket
-   */
-  async getRegion() {
-    const response = await this._s3Client.send(
-      new GetBucketLocationCommand({
-        Bucket: this._name
-      })
-    );
-    const region = response?.LocationConstraint as string;
-    return region;
-  }
-  /**
-   * Helping function for copying the files inside a directory
-   * to a new location, in the case of renaming a directory.
-   *
-   * @param fileName name of file to be copied
-   * @param oldPath old path of file
-   * @param newPath new path of file
-   */
-  async copy_file(fileName: string, oldPath: string, newPath: string) {
-    const copy_response = await this._s3Client.send(
-      new CopyObjectCommand({
-        Bucket: this._name,
-        CopySource: this._name + '/' + oldPath + fileName,
-        Key: newPath + fileName
-      })
-    );
-    console.log('RENAME, copy resp: ', copy_response);
-  }
-
-  /**
-   * Helping functions for deleting files inside
-   * a directory, in the case of deleting the directory.
-   *
-   * @param filePath complete path of file to delete
-   */
-  async delete_file(filePath: string) {
-    const delete_response = await this.s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: this._name,
-        Key: filePath
-      })
-    );
-    console.log('DELETE, file inside directory response: ', delete_response);
-  }
-
-  /**
    * Set bucket CORS rules to allow the operations within the extension.
    * @param name bucket name
    */
@@ -1159,11 +1111,59 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
+   * Helping function for extracting region of bucket.
+   * @returns region of Bucket
+   */
+  private async getRegion() {
+    const response = await this._s3Client.send(
+      new GetBucketLocationCommand({
+        Bucket: this._name
+      })
+    );
+    const region = response?.LocationConstraint as string;
+    return region;
+  }
+  /**
+   * Helping function for copying the files inside a directory
+   * to a new location, in the case of renaming a directory.
+   *
+   * @param fileName name of file to be copied
+   * @param oldPath old path of file
+   * @param newPath new path of file
+   */
+  private async copy_file(fileName: string, oldPath: string, newPath: string) {
+    const copy_response = await this._s3Client.send(
+      new CopyObjectCommand({
+        Bucket: this._name,
+        CopySource: this._name + '/' + oldPath + fileName,
+        Key: newPath + fileName
+      })
+    );
+    console.log('RENAME, copy resp: ', copy_response);
+  }
+
+  /**
+   * Helping functions for deleting files inside
+   * a directory, in the case of deleting the directory.
+   *
+   * @param filePath complete path of file to delete
+   */
+  private async delete_file(filePath: string) {
+    const delete_response = await this.s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: this._name,
+        Key: filePath
+      })
+    );
+    console.log('DELETE, file inside directory response: ', delete_response);
+  }
+
+  /**
    * Helping function to define file type, mimetype and format based on file extension.
    * @param extension file extension (e.g.: txt, ipynb, csv)
    * @returns
    */
-  getFileType(extension: string) {
+  private getFileType(extension: string) {
     let fileType: string;
     let fileMimetype: string;
     let fileFormat: Contents.FileFormat = 'text';
