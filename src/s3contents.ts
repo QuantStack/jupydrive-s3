@@ -7,12 +7,11 @@ import {
   DeleteObjectCommand,
   S3Client,
   ListObjectsV2Command,
+  GetBucketLocationCommand,
   GetObjectCommand,
   PutObjectCommand,
   HeadObjectCommand
 } from '@aws-sdk/client-s3';
-
-import { getBucketRegion } from './s3';
 
 let data: Contents.IModel = {
   name: '',
@@ -42,13 +41,9 @@ export class Drive implements Contents.IDrive {
     this._baseUrl = URLExt.join('https://s3.amazonaws.com/', this._name);
     this._provider = 'S3';
 
-    getBucketRegion(this._s3Client, this._name)
-      .then((region: string | undefined) => {
-        this._region = region!;
-      })
-      .catch((error: any) => {
-        console.error(error);
-      });
+    this.getRegion().then((region: string) => {
+      this._region = region!;
+    });
   }
 
   /**
@@ -1083,6 +1078,19 @@ export class Drive implements Contents.IDrive {
     return Promise.reject('Read only');
   }
 
+  /**
+   * Helping function for extracting region of bucket.
+   * @returns region of Bucket
+   */
+  async getRegion() {
+    const response = await this._s3Client.send(
+      new GetBucketLocationCommand({
+        Bucket: this._name
+      })
+    );
+    const region = response?.LocationConstraint as string;
+    return region;
+  }
   /**
    * Helping function for copying the files inside a directory
    * to a new location, in the case of renaming a directory.
