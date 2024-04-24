@@ -2,12 +2,15 @@
   "jupyter.lab.toolbars": {
     "DriveBrowser": [
       {
-        "name": "new-directory",
-        "command": "filebrowser:create-new-directory",
-        "rank": 10
+        "name": "drive",
+        "command": "drives:open-change-drive-dialog",
+        "rank": 35
       },
-      { "name": "uploader", "rank": 20 },
-      { "name": "refresh", "command": "filebrowser:refresh", "rank": 30 }
+      {
+        "name": "new-drive",
+        "command": "drives:open-new-drive-dialog",
+        "rank": 40
+      }
     ]
   },
   "title": "jupyter-drives-browser:file-browser-toolbar",
