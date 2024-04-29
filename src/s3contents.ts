@@ -14,6 +14,8 @@ import {
   HeadObjectCommand
 } from '@aws-sdk/client-s3';
 
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
 let data: Contents.IModel = {
   name: '',
   path: '',
@@ -176,9 +178,21 @@ export class Drive implements Contents.IDrive {
    * use [[ContentsManager.getAbsolutePath]] to get an absolute
    * path if necessary.
    */
-  getDownloadUrl(path: string): Promise<string> {
-    // Parse the path into user/repo/path
-    return Promise.reject('Empty getDownloadUrl method');
+  async getDownloadUrl(path: string): Promise<string> {
+    console.log('GET DOWNLOAD URL, given path: ', path);
+
+    const getCommand = new GetObjectCommand({
+      Bucket: this._name,
+      Key: path,
+      ResponseContentDisposition: 'attachment',
+      ResponseContentType: 'application/octet-stream'
+    });
+
+    await this._s3Client.send(getCommand);
+
+    // get pre-signed URL of S3 file
+    const signedUrl = await getSignedUrl(this._s3Client, getCommand);
+    return signedUrl;
   }
 
   /**
@@ -325,11 +339,21 @@ export class Drive implements Contents.IDrive {
         const response = await this._s3Client.send(command);
 
         if (response) {
-          const fileContents: string = await response.Body!.transformToString();
           const date: string = response.LastModified!.toISOString();
           const [fileType, fileMimeType, fileFormat] = this.getFileType(
             currentPath.split('.')[1]
           );
+
+          let fileContents: string | Uint8Array;
+         
+          // for certain media type files, extract content as byte array and decode to base64 to view in JupyterLab
+          if (fileType === 'PDF' || fileType === 'jpg' || fileType === 'jpeg' || fileType === 'png' || fileType === 'svg' || fileType === 'gif') {
+            fileContents = await response.Body!.transformToByteArray();
+            fileContents = btoa(fileContents.reduce((data, byte) => data + String.fromCharCode(byte), ''));
+          }
+          else {
+            fileContents = await response.Body!.transformToString();
+          }
 
           data = {
             name: currentPath,
@@ -844,9 +868,29 @@ export class Drive implements Contents.IDrive {
         ? localPath
         : localPath.split('/')[localPath.split.length - 1];
 
-    let body: string;
+    const [fileType, fileMimeType, fileFormat] = this.getFileType(
+      fileName.split('.')[1]
+    );
+
+    let body: string | Blob;
     if (options.format === 'json') {
       body = JSON.stringify(options?.content, null, 2);
+    } else if (options.format === 'base64' && (fileType === 'PDF' || fileType === 'jpg' || fileType === 'jpeg' || fileType === 'png' || fileType === 'svg' || fileType === 'svg')) {
+      // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket 
+      const byteCharacters = atob(options.content);
+      const byteArrays = [];
+
+      for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+        const slice = byteCharacters.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+
+      body = new Blob(byteArrays, { type: fileMimeType});   
     } else {
       body = options?.content;
     }
@@ -868,10 +912,6 @@ export class Drive implements Contents.IDrive {
         Bucket: this._name,
         Key: localPath
       })
-    );
-
-    const [fileType, fileMimeType, fileFormat] = this.getFileType(
-      fileName.split('.')[1]
     );
 
     data = {
@@ -1221,7 +1261,7 @@ export class Drive implements Contents.IDrive {
         fileFormat = 'base64';
         break;
       case 'jpg':
-        fileType = 'jpeg';
+        fileType = 'jpg';
         fileMimetype = 'image/jpeg';
         fileFormat = 'base64';
         break;
