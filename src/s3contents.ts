@@ -345,13 +345,24 @@ export class Drive implements Contents.IDrive {
           );
 
           let fileContents: string | Uint8Array;
-         
+
           // for certain media type files, extract content as byte array and decode to base64 to view in JupyterLab
-          if (fileType === 'PDF' || fileType === 'jpg' || fileType === 'jpeg' || fileType === 'png' || fileType === 'svg' || fileType === 'gif') {
+          if (
+            fileType === 'PDF' ||
+            fileType === 'jpg' ||
+            fileType === 'jpeg' ||
+            fileType === 'png' ||
+            fileType === 'svg' ||
+            fileType === 'gif'
+          ) {
             fileContents = await response.Body!.transformToByteArray();
-            fileContents = btoa(fileContents.reduce((data, byte) => data + String.fromCharCode(byte), ''));
-          }
-          else {
+            fileContents = btoa(
+              fileContents.reduce(
+                (data, byte) => data + String.fromCharCode(byte),
+                ''
+              )
+            );
+          } else {
             fileContents = await response.Body!.transformToString();
           }
 
@@ -875,8 +886,16 @@ export class Drive implements Contents.IDrive {
     let body: string | Blob;
     if (options.format === 'json') {
       body = JSON.stringify(options?.content, null, 2);
-    } else if (options.format === 'base64' && (fileType === 'PDF' || fileType === 'jpg' || fileType === 'jpeg' || fileType === 'png' || fileType === 'svg' || fileType === 'svg')) {
-      // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket 
+    } else if (
+      options.format === 'base64' &&
+      (fileType === 'PDF' ||
+        fileType === 'jpg' ||
+        fileType === 'jpeg' ||
+        fileType === 'png' ||
+        fileType === 'svg' ||
+        fileType === 'svg')
+    ) {
+      // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket
       const byteCharacters = atob(options.content);
       const byteArrays = [];
 
@@ -890,7 +909,7 @@ export class Drive implements Contents.IDrive {
         byteArrays.push(byteArray);
       }
 
-      body = new Blob(byteArrays, { type: fileMimeType});   
+      body = new Blob(byteArrays, { type: fileMimeType });
     } else {
       body = options?.content;
     }
