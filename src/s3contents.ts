@@ -374,14 +374,7 @@ export class Drive implements Contents.IDrive {
           let fileContents: string | Uint8Array;
 
           // for certain media type files, extract content as byte array and decode to base64 to view in JupyterLab
-          if (
-            fileType === 'PDF' ||
-            fileType === 'jpg' ||
-            fileType === 'jpeg' ||
-            fileType === 'png' ||
-            fileType === 'svg' ||
-            fileType === 'gif'
-          ) {
+          if (fileFormat === 'base64' || fileType === 'PDF') {
             fileContents = await response.Body!.transformToByteArray();
             fileContents = btoa(
               fileContents.reduce(
@@ -915,13 +908,7 @@ export class Drive implements Contents.IDrive {
       body = JSON.stringify(options?.content, null, 2);
     } else if (
       options.format === 'base64' &&
-      (fileType === 'PDF' ||
-        fileType === 'jpg' ||
-        fileType === 'jpeg' ||
-        fileType === 'png' ||
-        fileType === 'svg' ||
-        fileType === 'webp' ||
-        fileType === 'bmp')
+      (fileFormat === 'base64' || fileType === 'PDF')
     ) {
       // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket
       const byteCharacters = atob(options.content);
