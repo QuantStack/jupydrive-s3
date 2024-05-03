@@ -133,6 +133,9 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
       'jupyter-drives-browser:file-browser-toolbar pluging activated!'
     );
 
+    // get registered file types
+    S3Drive.getRegisteredFileTypes(app);
+
     app.commands.addCommand(CommandIDs.openChangeDrive, {
       execute: () => {
         return showDialog({
