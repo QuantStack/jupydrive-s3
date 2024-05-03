@@ -189,11 +189,10 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
           ]
         }).then(result => {
           if (result.value) {
-            const { path, toDir } = args;
             S3Drive.copyToAnotherBucket(
-              path as string,
-              toDir as string,
-              result.value
+              args.path as string,
+              result.value[1] as string,
+              result.value[0]
             );
           }
         });
@@ -325,23 +324,31 @@ class CopyToAnotherBucket extends Widget {
   constructor() {
     super({ node: Private.createCopyToAnotherBucketNode() });
     this.addClass(FILE_DIALOG_CLASS);
-    const value = this.inputNode.value;
-    console.log(value);
-    this.inputNode.setSelectionRange(0, value.length);
+    const name = this.inputNameNode.value;
+    this.inputNameNode.setSelectionRange(0, name.length);
+    const location = this.inputLocationNode.value;
+    this.inputLocationNode.setSelectionRange(0, location.length);
   }
 
   /**
-   * Get the input text node.
+   * Get the input text node for the bucket name.
    */
-  get inputNode(): HTMLInputElement {
+  get inputNameNode(): HTMLInputElement {
     return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
+  }
+
+  /**
+   * Get the input text node for the location within the bucket.
+   */
+  get inputLocationNode(): HTMLInputElement {
+    return this.node.getElementsByTagName('input')[1] as HTMLInputElement;
   }
 
   /**
    * Get the value of the widget.
    */
-  getValue(): string {
-    return this.inputNode.value;
+  getValue(): string[] {
+    return [this.inputNameNode.value, this.inputLocationNode.value];
   }
 }
 
@@ -448,8 +455,15 @@ namespace Private {
     nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
     const name = document.createElement('input');
 
+    const location = document.createElement('label');
+    location.textContent = 'Location within the Bucket';
+    location.className = SWITCH_DRIVE_TITLE_CLASS;
+    const locationName = document.createElement('input');
+
     body.appendChild(nameTitle);
     body.appendChild(name);
+    body.appendChild(location);
+    body.appendChild(locationName);
     return body;
   }
 }
