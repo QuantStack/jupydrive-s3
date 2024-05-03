@@ -206,8 +206,6 @@ export class Drive implements Contents.IDrive {
    * path if necessary.
    */
   async getDownloadUrl(path: string): Promise<string> {
-    console.log('GET DOWNLOAD URL, given path: ', path);
-
     const getCommand = new GetObjectCommand({
       Bucket: this._name,
       Key: path,
@@ -1256,7 +1254,7 @@ export class Drive implements Contents.IDrive {
     let fileType: string = 'text';
     let fileMimetype: string = 'text/plain';
     let fileFormat: string = 'text';
-    extension = extension !== undefined ? extension : '';
+    extension = extension ?? '';
 
     if (this._registeredFileTypes[extension]) {
       fileType = this._registeredFileTypes[extension].fileType;
