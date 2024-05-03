@@ -1007,6 +1007,83 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
+   * Copy a file into another bucket.
+   *
+   * @param path - The original file path.
+   *
+   * @param toDir - The destination directory path.
+   *
+   * @returns A promise which resolves with the new contents model when the
+   *  file is copied.
+   */
+  async copyToAnotherBucket(
+    path: string,
+    toDir: string,
+    bucketName: string,
+    options: Contents.ICreateOptions = {}
+  ): Promise<Contents.IModel> {
+    // check if we are dealing with a directory
+    const info = await this.s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: this._name,
+        Prefix: path
+      })
+    );
+
+    let isDir: boolean = false;
+    if (
+      info.Contents!.length > 1 ||
+      info.Contents![0].Key![info.Contents![0].Key!.length - 1] === '/'
+    ) {
+      isDir = true;
+    }
+
+    const newFileName = await this.incrementCopyName(path, isDir);
+
+    // copy file to another bucket
+    const copy_response = await this._s3Client.send(
+      new CopyObjectCommand({
+        Bucket: bucketName,
+        CopySource: this._name + '/' + path,
+        Key: toDir !== '' ? toDir + '/' + newFileName : newFileName
+      })
+    );
+    console.log('COPY response: ', copy_response);
+
+    // retrieve information of new file
+    const newFileContents = await this._s3Client.send(
+      new GetObjectCommand({
+        Bucket: bucketName,
+        Key: toDir !== '' ? toDir + '/' + newFileName : newFileName
+      })
+    );
+    const [fileType, fileMimeType, fileFormat] = this.getFileType(
+      newFileName.split('.')[1]
+    );
+
+    data = {
+      name: newFileName,
+      path: toDir + '/' + newFileName,
+      last_modified: newFileContents.LastModified!.toISOString(),
+      created: new Date().toISOString(),
+      content: await newFileContents.Body!.transformToString(),
+      format: fileFormat as Contents.FileFormat,
+      mimetype: fileMimeType,
+      size: newFileContents.ContentLength!,
+      writable: true,
+      type: fileType
+    };
+
+    this._fileChanged.emit({
+      type: 'new',
+      oldValue: null,
+      newValue: data
+    });
+    Contents.validateContentsModel(data);
+    return data;
+  }
+
+  /**
    * Create a checkpoint for a file.
    *
    * @param path - The path of the file.
