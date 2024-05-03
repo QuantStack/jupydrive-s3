@@ -39,6 +39,7 @@ namespace CommandIDs {
   export const openPath = 'filebrowser:open-path';
   export const openChangeDrive = 'drives:open-change-drive-dialog';
   export const newDrive = 'drives:open-new-drive-dialog';
+  export const copyToAnotherBucket = 'drives:copy-to-another-bucket';
 }
 
 const FILE_BROWSER_FACTORY = 'DriveBrowser';
@@ -175,6 +176,38 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
       icon: NewDriveIcon.bindprops({ stylesheet: 'menuItem' })
     });
 
+    app.commands.addCommand(CommandIDs.copyToAnotherBucket, {
+      execute: async args => {
+        return showDialog({
+          body: new CopyToAnotherBucket(),
+          focusNodeSelector: 'input',
+          buttons: [
+            Dialog.okButton({
+              label: 'Copy',
+              ariaLabel: 'Copy to another Bucket'
+            })
+          ]
+        }).then(result => {
+          if (result.value) {
+            const { path, toDir } = args;
+            S3Drive.copyToAnotherBucket(
+              path as string,
+              toDir as string,
+              result.value
+            );
+          }
+        });
+      },
+      icon: DriveIcon.bindprops({ stylesheet: 'menuItem' }),
+      label: 'Copy to another Bucket'
+    });
+
+    app.contextMenu.addItem({
+      command: CommandIDs.copyToAnotherBucket,
+      selector: '.jp-SidePanel .jp-DirListing-content .jp-DirListing-item',
+      rank: 10
+    });
+
     toolbarRegistry.addFactory(
       FILE_BROWSER_FACTORY,
       'uploaderTest',
@@ -282,6 +315,36 @@ class NewDriveHandler extends Widget {
   }
 }
 
+/**
+ * A widget used to copy files or directories to another bucket.
+ */
+class CopyToAnotherBucket extends Widget {
+  /**
+   * Construct a new "copy-to-another-bucket" dialog.
+   */
+  constructor() {
+    super({ node: Private.createCopyToAnotherBucketNode() });
+    this.addClass(FILE_DIALOG_CLASS);
+    const value = this.inputNode.value;
+    console.log(value);
+    this.inputNode.setSelectionRange(0, value.length);
+  }
+
+  /**
+   * Get the input text node.
+   */
+  get inputNode(): HTMLInputElement {
+    return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
+  }
+
+  /**
+   * Get the value of the widget.
+   */
+  getValue(): string {
+    return this.inputNode.value;
+  }
+}
+
 namespace Private {
   /**
    * Restores file browser state and overrides state if tree resolver resolves.
@@ -366,6 +429,22 @@ namespace Private {
 
     const nameTitle = document.createElement('label');
     nameTitle.textContent = 'Create a New Drive';
+    nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
+    const name = document.createElement('input');
+
+    body.appendChild(nameTitle);
+    body.appendChild(name);
+    return body;
+  }
+
+  /**
+   * Create the node for a copy to another bucket handler.
+   */
+  export function createCopyToAnotherBucketNode(): HTMLElement {
+    const body = document.createElement('div');
+
+    const nameTitle = document.createElement('label');
+    nameTitle.textContent = 'Copy to another Bucket';
     nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
     const name = document.createElement('input');
 
