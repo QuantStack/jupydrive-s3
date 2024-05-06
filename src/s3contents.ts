@@ -770,7 +770,7 @@ export class Drive implements Contents.IDrive {
         if (Contents) {
           Contents.forEach(c => {
             const fileName = c.Key!.split('/')[c.Key!.split.length - 1];
-            this.copy_file(fileName, oldLocalPath, newLocalPath);
+            this.copy_file(fileName, oldLocalPath, newLocalPath, this._name);
           });
         }
         if (isTruncated) {
@@ -872,7 +872,7 @@ export class Drive implements Contents.IDrive {
     }
 
     let newName = counter ? originalName + counter : originalName;
-    newName = isDir ? newName : newName + '.' + fileExtension;
+    newName = isDir ? newName + '/' : newName + '.' + fileExtension;
 
     return newName;
   }
@@ -998,10 +998,12 @@ export class Drive implements Contents.IDrive {
       copiedItemPath.split('/')[copiedItemPath.split('/').length - 1];
 
     // constructing new file name and path with -Copy string
-    const newFileName =
-      originalFileName.split('.')[0] +
-      '-Copy.' +
-      originalFileName.split('.')[1];
+    const newFileName = isDir
+      ? originalFileName + '-Copy'
+      : originalFileName.split('.')[0] +
+        '-Copy.' +
+        originalFileName.split('.')[1];
+
     const newFilePath = isDir
       ? copiedItemPath.substring(0, copiedItemPath.lastIndexOf('/') + 1) +
         newFileName +
@@ -1051,6 +1053,7 @@ export class Drive implements Contents.IDrive {
     }
 
     const newFileName = await this.incrementCopyName(path, isDir, this._name);
+    path = isDir ? path + '/' : path;
 
     const copy_response = await this._s3Client.send(
       new CopyObjectCommand({
@@ -1060,6 +1063,33 @@ export class Drive implements Contents.IDrive {
       })
     );
     console.log('COPY response: ', copy_response);
+
+    // in the case of renaming a directory, move files to new location
+    if (isDir) {
+      // get list of content from old directory
+      const command = new ListObjectsV2Command({
+        Bucket: this._name,
+        Prefix: path
+      });
+
+      let isTruncated: boolean | undefined = true;
+
+      while (isTruncated) {
+        const { Contents, IsTruncated, NextContinuationToken } =
+          await this._s3Client.send(command);
+
+        if (Contents) {
+          Contents.forEach(c => {
+            const fileName = c.Key!.split('/')[c.Key!.split.length - 1];
+            this.copy_file(fileName, path, newFileName, this._name);
+          });
+        }
+        if (isTruncated) {
+          isTruncated = IsTruncated;
+        }
+        command.input.ContinuationToken = NextContinuationToken;
+      }
+    }
 
     // retrieve information of new file
     const newFileContents = await this._s3Client.send(
@@ -1112,6 +1142,9 @@ export class Drive implements Contents.IDrive {
     bucketName: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
+    path =
+      path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
+
     // check if we are dealing with a directory
     const info = await this.s3Client.send(
       new ListObjectsV2Command({
@@ -1129,6 +1162,7 @@ export class Drive implements Contents.IDrive {
     }
 
     const newFileName = await this.incrementCopyName(path, isDir, bucketName);
+    path = isDir ? path + '/' : path;
 
     // copy file to another bucket
     const copy_response = await this._s3Client.send(
@@ -1139,6 +1173,33 @@ export class Drive implements Contents.IDrive {
       })
     );
     console.log('COPY response: ', copy_response);
+
+    // in the case of renaming a directory, move files to new location
+    if (isDir) {
+      // get list of content from old directory
+      const command = new ListObjectsV2Command({
+        Bucket: this._name,
+        Prefix: path
+      });
+
+      let isTruncated: boolean | undefined = true;
+
+      while (isTruncated) {
+        const { Contents, IsTruncated, NextContinuationToken } =
+          await this._s3Client.send(command);
+
+        if (Contents) {
+          Contents.forEach(c => {
+            const fileName = c.Key!.split('/')[c.Key!.split.length - 1];
+            this.copy_file(fileName, path, newFileName, bucketName);
+          });
+        }
+        if (isTruncated) {
+          isTruncated = IsTruncated;
+        }
+        command.input.ContinuationToken = NextContinuationToken;
+      }
+    }
 
     // retrieve information of new file
     const newFileContents = await this._s3Client.send(
@@ -1272,21 +1333,29 @@ export class Drive implements Contents.IDrive {
   }
   /**
    * Helping function for copying the files inside a directory
-   * to a new location, in the case of renaming a directory.
+   * to a new location, in the case of renaming or copying a directory.
    *
    * @param fileName name of file to be copied
    * @param oldPath old path of file
    * @param newPath new path of file
    */
-  private async copy_file(fileName: string, oldPath: string, newPath: string) {
+  private async copy_file(
+    fileName: string,
+    oldPath: string,
+    newPath: string,
+    bucketName: string
+  ) {
     const copy_response = await this._s3Client.send(
       new CopyObjectCommand({
-        Bucket: this._name,
+        Bucket: bucketName,
         CopySource: this._name + '/' + oldPath + fileName,
         Key: newPath + fileName
       })
     );
-    console.log('RENAME, file inside directory copy resp: ', copy_response);
+    console.log(
+      'RENAME or COPY, file inside directory copy resp: ',
+      copy_response
+    );
   }
 
   /**
