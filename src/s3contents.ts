@@ -472,14 +472,13 @@ export class Drive implements Contents.IDrive {
     if (options.type !== undefined) {
       if (options.type !== 'directory') {
         const name = this.incrementUntitledName(old_data, options);
-        const response = await this.s3Client.send(
+        await this.s3Client.send(
           new PutObjectCommand({
             Bucket: this._name,
             Key: options.path ? options.path + '/' + name : name,
             Body: body
           })
         );
-        console.log('NEW FILE, response: ', response);
 
         // retrieve information of old file
         const newFileContents = await this._s3Client.send(
@@ -507,14 +506,13 @@ export class Drive implements Contents.IDrive {
       } else {
         // creating a new directory
         const name = this.incrementUntitledName(old_data, options);
-        const response = await this.s3Client.send(
+        await this.s3Client.send(
           new PutObjectCommand({
             Bucket: this._name,
             Key: options.path ? options.path + '/' + name + '/' : name + '/',
             Body: body
           })
         );
-        console.log('NEW DIRECTORY, response: ', response);
 
         data = {
           name: name,
@@ -619,13 +617,12 @@ export class Drive implements Contents.IDrive {
       isDir = 1;
     }
 
-    const response = await this.s3Client.send(
+    await this.s3Client.send(
       new DeleteObjectCommand({
         Bucket: this._name,
         Key: localPath
       })
     );
-    console.log('DELETE, response: ', response);
 
     // if we are dealing with a directory, delete files inside it
     if (isDir) {
@@ -744,14 +741,13 @@ export class Drive implements Contents.IDrive {
     const body = await fileContents.Body?.transformToString();
 
     // create new file with same content, but different name
-    const response = await this.s3Client.send(
+    await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
         Key: newLocalPath,
         Body: body
       })
     );
-    console.log('RENAME, response', response);
 
     // in the case of renaming a directory, move files to new location
     if (isDir) {
@@ -932,7 +928,7 @@ export class Drive implements Contents.IDrive {
     }
 
     // save file with new content by overwritting existing file
-    const response = await this._s3Client.send(
+    await this._s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
         Key: localPath,
@@ -940,7 +936,6 @@ export class Drive implements Contents.IDrive {
         CacheControl: 'no-cache'
       })
     );
-    console.log('SAVE response: ', response);
 
     // retrieve information of file with new content
     const info = await this._s3Client.send(
@@ -991,8 +986,6 @@ export class Drive implements Contents.IDrive {
     isDir: boolean,
     bucketName: string
   ) {
-    console.log('COPIED ITEM PATH: ', copiedItemPath);
-
     // extracting original file name
     const originalFileName =
       copiedItemPath.split('/')[copiedItemPath.split('/').length - 1];
@@ -1055,14 +1048,13 @@ export class Drive implements Contents.IDrive {
     const newFileName = await this.incrementCopyName(path, isDir, this._name);
     path = isDir ? path + '/' : path;
 
-    const copy_response = await this._s3Client.send(
+    await this._s3Client.send(
       new CopyObjectCommand({
         Bucket: this._name,
         CopySource: this._name + '/' + path,
         Key: toDir !== '' ? toDir + '/' + newFileName : newFileName
       })
     );
-    console.log('COPY response: ', copy_response);
 
     // in the case of renaming a directory, move files to new location
     if (isDir) {
@@ -1165,14 +1157,13 @@ export class Drive implements Contents.IDrive {
     path = isDir ? path + '/' : path;
 
     // copy file to another bucket
-    const copy_response = await this._s3Client.send(
+    await this._s3Client.send(
       new CopyObjectCommand({
         Bucket: bucketName,
         CopySource: this._name + '/' + path,
         Key: toDir !== '' ? toDir + '/' + newFileName : newFileName
       })
     );
-    console.log('COPY response: ', copy_response);
 
     // in the case of renaming a directory, move files to new location
     if (isDir) {
@@ -1293,7 +1284,7 @@ export class Drive implements Contents.IDrive {
    * @param name bucket name
    */
   async setBucketCORS(name: string) {
-    const response = await this.s3Client.send(
+    await this.s3Client.send(
       new PutBucketCorsCommand({
         Bucket: name,
         CORSConfiguration: {
@@ -1315,7 +1306,6 @@ export class Drive implements Contents.IDrive {
         }
       })
     );
-    console.log('SET BUCKET CORS, response: ', response);
   }
 
   /**
@@ -1345,16 +1335,12 @@ export class Drive implements Contents.IDrive {
     newPath: string,
     bucketName: string
   ) {
-    const copy_response = await this._s3Client.send(
+    await this._s3Client.send(
       new CopyObjectCommand({
         Bucket: bucketName,
         CopySource: this._name + '/' + oldPath + fileName,
         Key: newPath + fileName
       })
-    );
-    console.log(
-      'RENAME or COPY, file inside directory copy resp: ',
-      copy_response
     );
   }
 
@@ -1365,13 +1351,12 @@ export class Drive implements Contents.IDrive {
    * @param filePath complete path of file to delete
    */
   private async delete_file(filePath: string) {
-    const delete_response = await this.s3Client.send(
+    await this.s3Client.send(
       new DeleteObjectCommand({
         Bucket: this._name,
         Key: filePath
       })
     );
-    console.log('DELETE, file inside directory response: ', delete_response);
   }
 
   /**
