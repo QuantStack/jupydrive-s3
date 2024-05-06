@@ -138,6 +138,9 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
 
     const { tracker } = factory;
 
+    // get registered file types
+    S3Drive.getRegisteredFileTypes(app);
+
     app.commands.addCommand(CommandIDs.openChangeDrive, {
       execute: () => {
         return showDialog({

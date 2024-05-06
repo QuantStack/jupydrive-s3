@@ -1,6 +1,7 @@
 import { Signal, ISignal } from '@lumino/signaling';
 import { Contents, ServerConnection } from '@jupyterlab/services';
 import { URLExt } from '@jupyterlab/coreutils';
+import { JupyterFrontEnd } from '@jupyterlab/application';
 
 import {
   CopyObjectCommand,
@@ -14,6 +15,8 @@ import {
   HeadObjectCommand
 } from '@aws-sdk/client-s3';
 
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
 let data: Contents.IModel = {
   name: '',
   path: '',
@@ -26,6 +29,14 @@ let data: Contents.IModel = {
   writable: true,
   type: ''
 };
+
+export interface IRegisteredFileTypes {
+  [fileExtension: string]: {
+    fileType: string;
+    fileMimeTypes: string[];
+    fileFormat: string;
+  };
+}
 
 export class Drive implements Contents.IDrive {
   /**
@@ -45,6 +56,8 @@ export class Drive implements Contents.IDrive {
     this.getRegion().then((region: string) => {
       this._region = region!;
     });
+
+    this._registeredFileTypes = {};
   }
 
   /**
@@ -108,7 +121,8 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
-   * The Drive region setter */
+   * The Drive region setter
+   */
   set region(region: string) {
     this._region = region;
   }
@@ -121,9 +135,24 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
-   * The Drive region setter */
+   * The Drive creationDate setter
+   */
   set creationDate(date: string) {
     this._creationDate = date;
+  }
+
+  /**
+   * The registered file types
+   */
+  get registeredFileTypes(): IRegisteredFileTypes {
+    return this._registeredFileTypes;
+  }
+
+  /**
+   * The registered file types
+   */
+  set registeredFileTypes(fileTypes: IRegisteredFileTypes) {
+    this._registeredFileTypes = fileTypes;
   }
 
   /**
@@ -176,9 +205,19 @@ export class Drive implements Contents.IDrive {
    * use [[ContentsManager.getAbsolutePath]] to get an absolute
    * path if necessary.
    */
-  getDownloadUrl(path: string): Promise<string> {
-    // Parse the path into user/repo/path
-    return Promise.reject('Empty getDownloadUrl method');
+  async getDownloadUrl(path: string): Promise<string> {
+    const getCommand = new GetObjectCommand({
+      Bucket: this._name,
+      Key: path,
+      ResponseContentDisposition: 'attachment',
+      ResponseContentType: 'application/octet-stream'
+    });
+
+    await this._s3Client.send(getCommand);
+
+    // get pre-signed URL of S3 file
+    const signedUrl = await getSignedUrl(this._s3Client, getCommand);
+    return signedUrl;
   }
 
   /**
@@ -325,11 +364,25 @@ export class Drive implements Contents.IDrive {
         const response = await this._s3Client.send(command);
 
         if (response) {
-          const fileContents: string = await response.Body!.transformToString();
           const date: string = response.LastModified!.toISOString();
           const [fileType, fileMimeType, fileFormat] = this.getFileType(
             currentPath.split('.')[1]
           );
+
+          let fileContents: string | Uint8Array;
+
+          // for certain media type files, extract content as byte array and decode to base64 to view in JupyterLab
+          if (fileFormat === 'base64' || fileType === 'PDF') {
+            fileContents = await response.Body!.transformToByteArray();
+            fileContents = btoa(
+              fileContents.reduce(
+                (data, byte) => data + String.fromCharCode(byte),
+                ''
+              )
+            );
+          } else {
+            fileContents = await response.Body!.transformToString();
+          }
 
           data = {
             name: currentPath,
@@ -848,9 +901,32 @@ export class Drive implements Contents.IDrive {
         ? localPath
         : localPath.split('/')[localPath.split.length - 1];
 
-    let body: string;
+    const [fileType, fileMimeType, fileFormat] = this.getFileType(
+      fileName.split('.')[1]
+    );
+
+    let body: string | Blob;
     if (options.format === 'json') {
       body = JSON.stringify(options?.content, null, 2);
+    } else if (
+      options.format === 'base64' &&
+      (fileFormat === 'base64' || fileType === 'PDF')
+    ) {
+      // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket
+      const byteCharacters = atob(options.content);
+      const byteArrays = [];
+
+      for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+        const slice = byteCharacters.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+
+      body = new Blob(byteArrays, { type: fileMimeType });
     } else {
       body = options?.content;
     }
@@ -872,10 +948,6 @@ export class Drive implements Contents.IDrive {
         Bucket: this._name,
         Key: localPath
       })
-    );
-
-    const [fileType, fileMimeType, fileFormat] = this.getFileType(
-      fileName.split('.')[1]
     );
 
     data = {
@@ -1234,130 +1306,60 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
+   * Get all registered file types and store them accordingly with their file
+   * extension (e.g.: .txt, .pdf, .jpeg), file mimetype (e.g.: text/plain, application/pdf)
+   * and file format (e.g.: base64, text).
+   *
+   * @param app
+   */
+  getRegisteredFileTypes(app: JupyterFrontEnd) {
+    // get called when instating the toolbar
+    const registeredFileTypes = app.docRegistry.fileTypes();
+
+    for (const fileType of registeredFileTypes) {
+      // check if we are dealing with a directory
+      if (fileType.extensions.length === 0) {
+        this._registeredFileTypes[''] = {
+          fileType: 'directory',
+          fileFormat: 'json',
+          fileMimeTypes: ['text/directory']
+        };
+      }
+
+      // store the mimetype and fileformat for each file extension
+      fileType.extensions.forEach(extension => {
+        extension = extension.split('.')[1];
+        if (!this._registeredFileTypes[extension]) {
+          this._registeredFileTypes[extension] = {
+            fileType: fileType.name,
+            fileMimeTypes: [...fileType.mimeTypes],
+            fileFormat: fileType.fileFormat ? fileType.fileFormat : ''
+          };
+        }
+      });
+    }
+  }
+
+  /**
    * Helping function to define file type, mimetype and format based on file extension.
    * @param extension file extension (e.g.: txt, ipynb, csv)
    * @returns
    */
   private getFileType(extension: string) {
-    let fileType: string;
-    let fileMimetype: string;
-    let fileFormat: Contents.FileFormat = 'text';
+    let fileType: string = 'text';
+    let fileMimetype: string = 'text/plain';
+    let fileFormat: string = 'text';
+    extension = extension ?? '';
 
-    switch (extension) {
-      case 'txt':
-        fileType = 'text';
-        fileMimetype = 'text/plain';
-        break;
-      case 'ipynb':
-        fileType = 'notebook';
-        fileMimetype = 'application/x-ipynb+json';
-        break;
-      case 'md':
-        fileType = 'markdown';
-        fileMimetype = 'text/markdown';
-        break;
-      case 'pdf':
-        fileType = 'PDF';
-        fileMimetype = 'application/pdf';
-        break;
-      case 'py':
-        fileType = 'python';
-        fileMimetype = 'text/x-python';
-        break;
-      case 'json':
-        fileType = 'json';
-        fileMimetype = 'application/json';
-        break;
-      case 'jsonl':
-        fileType = 'jsonl';
-        fileMimetype = 'test/jsonl';
-        break;
-      case 'ndjson':
-        fileType = 'jsonl';
-        fileMimetype = 'application/jsonl';
-        break;
-      case 'jl':
-        fileType = 'julia';
-        fileMimetype = 'text/x-julia';
-        break;
-      case 'csv':
-        fileType = 'csv';
-        fileMimetype = 'text/csv';
-        break;
-      case 'tsv':
-        fileType = 'tsv';
-        fileMimetype = 'text/csv';
-        break;
-      case 'R':
-        fileType = 'r';
-        fileMimetype = 'text/x-rsrc';
-        break;
-      case 'yaml':
-        fileType = 'yaml';
-        fileMimetype = 'text/x-yaml';
-        break;
-      case 'yml':
-        fileType = 'yaml';
-        fileMimetype = 'text/x-yaml';
-        break;
-      case 'svg':
-        fileType = 'svg';
-        fileMimetype = 'image/svg+xml';
-        fileFormat = 'base64';
-        break;
-      case 'tif':
-        fileType = 'tiff';
-        fileMimetype = 'image/tiff';
-        fileFormat = 'base64';
-        break;
-      case 'tiff':
-        fileType = 'tiff';
-        fileMimetype = 'image/tiff';
-        fileFormat = 'base64';
-        break;
-      case 'jpg':
-        fileType = 'jpeg';
-        fileMimetype = 'image/jpeg';
-        fileFormat = 'base64';
-        break;
-      case 'jpeg':
-        fileType = 'jpeg';
-        fileMimetype = 'image/jpeg';
-        fileFormat = 'base64';
-        break;
-      case 'gif':
-        fileType = 'gif';
-        fileMimetype = 'image/gif';
-        fileFormat = 'base64';
-        break;
-      case 'png':
-        fileType = 'png';
-        fileMimetype = 'image/png';
-        fileFormat = 'base64';
-        break;
-      case 'bmp':
-        fileType = 'bmp';
-        fileMimetype = 'image/bmp';
-        fileFormat = 'base64';
-        break;
-      case 'webp':
-        fileType = 'webp';
-        fileMimetype = 'image/webp';
-        fileFormat = 'base64';
-        break;
-      case 'html':
-        fileType = 'html';
-        fileMimetype = 'text/html';
-        break;
-      case undefined:
-        fileType = 'directory';
-        fileMimetype = 'text/directory';
-        fileFormat = 'json';
-        break;
-      default:
-        fileType = 'text';
-        fileMimetype = 'text/plain';
-        break;
+    if (this._registeredFileTypes[extension]) {
+      fileType = this._registeredFileTypes[extension].fileType;
+      fileMimetype = this._registeredFileTypes[extension].fileMimeTypes[0];
+      fileFormat = this._registeredFileTypes[extension].fileFormat;
+    }
+
+    // the file format for notebooks appears as json, but should be text
+    if (extension === 'ipynb') {
+      fileFormat = 'text';
     }
 
     return [fileType, fileMimetype, fileFormat];
@@ -1373,6 +1375,7 @@ export class Drive implements Contents.IDrive {
   private _fileChanged = new Signal<this, Contents.IChangedArgs>(this);
   private _isDisposed: boolean = false;
   private _disposed = new Signal<this, void>(this);
+  private _registeredFileTypes: IRegisteredFileTypes = {};
 }
 
 export namespace Drive {
