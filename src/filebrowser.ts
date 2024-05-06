@@ -120,7 +120,8 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
     IDefaultFileBrowser,
     IToolbarWidgetRegistry,
     ISettingRegistry,
-    ITranslator
+    ITranslator,
+    IFileBrowserFactory
   ],
   autoStart: true,
   activate: async (
@@ -128,11 +129,14 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
     fileBrowser: IDefaultFileBrowser,
     toolbarRegistry: IToolbarWidgetRegistry,
     settingsRegistry: ISettingRegistry,
-    translator: ITranslator
+    translator: ITranslator,
+    factory: IFileBrowserFactory
   ): Promise<void> => {
     console.log(
       'jupyter-drives-browser:file-browser-toolbar pluging activated!'
     );
+
+    const { tracker } = factory;
 
     app.commands.addCommand(CommandIDs.openChangeDrive, {
       execute: () => {
@@ -177,7 +181,7 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
     });
 
     app.commands.addCommand(CommandIDs.copyToAnotherBucket, {
-      execute: async args => {
+      execute: async () => {
         return showDialog({
           body: new CopyToAnotherBucket(),
           focusNodeSelector: 'input',
@@ -188,12 +192,21 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
             })
           ]
         }).then(result => {
-          if (result.value) {
-            S3Drive.copyToAnotherBucket(
-              args.path as string,
-              result.value[1] as string,
-              result.value[0]
-            );
+          const widget = tracker.currentWidget;
+
+          if (widget) {
+            const path = widget
+              .selectedItems()
+              .next()!
+              .value.path.split(':')[1];
+
+            if (result.value) {
+              S3Drive.copyToAnotherBucket(
+                path,
+                result.value[1],
+                result.value[0]
+              );
+            }
           }
         });
       },
@@ -203,7 +216,8 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
 
     app.contextMenu.addItem({
       command: CommandIDs.copyToAnotherBucket,
-      selector: '.jp-SidePanel .jp-DirListing-content .jp-DirListing-item',
+      selector:
+        '.jp-SidePanel .jp-DirListing-content .jp-DirListing-item[data-isDir]',
       rank: 10
     });
 
