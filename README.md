@@ -1,7 +1,29 @@
 # jupyter-drives-browser
 
 [![Github Actions Status](https://github.com/QuantStack/jupyter-drives-browser/workflows/Build/badge.svg)](https://github.com/QuantStack/jupyter-drives-browser/actions/workflows/build.yml)
-A JupyterLab extension which enables client-side drives access.
+A JupyterLab extension which enables client-side drives access. 
+
+![Screenshot from 2024-05-06 15-22-59](https://github.com/DenisaCG/jupyter-drives-browser/assets/91504950/c6912105-cc0b-4a95-9234-57faebe75b90)
+
+The drives are used as a filesystem, having support for all basic functionalities (file tree-view, editing contents, copying, renaming, deleting, downloading etc).
+
+The extension was built using the official JavaScript [`AWS SDK`](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/).
+
+## Drives Compatibility
+
+Currently, the extension offers support only for [`S3`](https://aws.amazon.com/s3/) drives.
+
+## Configuration
+
+### Set `CORS` Rules
+
+As the extension works in the browser, the `S3` buckets need to have certain `CORS` (Cross-Origin-Resource-Sharing) rules set:
+
+- `http://localhost:*` needs to be added to the `AllowedOrigins` section,
+- `GET`, `PUT`, `DELETE`, `HEAD` need to be added to the `AllowedMethods` section.
+
+More information about `CORS` [here](https://docs.aws.amazon.com/AmazonS3/latest/userguide/cors.html) and the various ways to configure it [here](https://docs.aws.amazon.com/AmazonS3/latest/userguide/enabling-cors-examples.html).
+
 
 ## Requirements
 
