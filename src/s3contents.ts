@@ -673,7 +673,7 @@ export class Drive implements Contents.IDrive {
         })
       );
       console.log('File name already exists!');
-      newFileName = await this.incrementName(newLocalPath, isDir);
+      newFileName = await this.incrementName(newLocalPath, isDir, this._name);
       if (isDir) {
         newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
       }
@@ -755,9 +755,13 @@ export class Drive implements Contents.IDrive {
   /**
    * Helping function to increment name of existing files or directorties.
    *
-   * @param localPath - Path to file
+   * @param localPath - Path to file.
+   *
+   * @param isDir - Whether the content is a directory or a file.
+   *
+   * @param bucketName - The name of the bucket where content is moved.
    */
-  async incrementName(localPath: string, isDir: boolean) {
+  async incrementName(localPath: string, isDir: boolean, bucketName: string) {
     let counter: number = 0;
     let fileExtension: string = '';
     let originalName: string = '';
@@ -779,7 +783,7 @@ export class Drive implements Contents.IDrive {
     }
 
     const command = new ListObjectsV2Command({
-      Bucket: this._name,
+      Bucket: bucketName,
       Prefix: localPath.substring(0, localPath.lastIndexOf('/'))
     });
 
@@ -905,10 +909,18 @@ export class Drive implements Contents.IDrive {
    *
    * @param isDir - The boolean marking if we are dealing with a file or directory.
    *
+   * @param bucketName - The name of the bucket where content is moved.
+   *
    * @returns A promise which resolves with the new name when the
    *  file is copied.
    */
-  async incrementCopyName(copiedItemPath: string, isDir: boolean) {
+  async incrementCopyName(
+    copiedItemPath: string,
+    isDir: boolean,
+    bucketName: string
+  ) {
+    console.log('COPIED ITEM PATH: ', copiedItemPath);
+
     // extracting original file name
     const originalFileName =
       copiedItemPath.split('/')[copiedItemPath.split('/').length - 1];
@@ -926,7 +938,11 @@ export class Drive implements Contents.IDrive {
         newFileName;
 
     // getting incremented name of Copy in case of duplicates
-    const incrementedName = await this.incrementName(newFilePath, isDir);
+    const incrementedName = await this.incrementName(
+      newFilePath,
+      isDir,
+      bucketName
+    );
 
     return incrementedName;
   }
@@ -962,7 +978,7 @@ export class Drive implements Contents.IDrive {
       isDir = true;
     }
 
-    const newFileName = await this.incrementCopyName(path, isDir);
+    const newFileName = await this.incrementCopyName(path, isDir, this._name);
 
     const copy_response = await this._s3Client.send(
       new CopyObjectCommand({
@@ -1013,6 +1029,8 @@ export class Drive implements Contents.IDrive {
    *
    * @param toDir - The destination directory path.
    *
+   * @param bucketName - The name of the bucket where content is moved.
+   *
    * @returns A promise which resolves with the new contents model when the
    *  file is copied.
    */
@@ -1038,7 +1056,7 @@ export class Drive implements Contents.IDrive {
       isDir = true;
     }
 
-    const newFileName = await this.incrementCopyName(path, isDir);
+    const newFileName = await this.incrementCopyName(path, isDir, bucketName);
 
     // copy file to another bucket
     const copy_response = await this._s3Client.send(
