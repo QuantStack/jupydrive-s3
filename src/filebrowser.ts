@@ -273,11 +273,12 @@ class SwitchDriveHandler extends Widget {
    */
   constructor(oldDriveName: string) {
     super({ node: Private.createSwitchDriveNode(oldDriveName) });
+    this.onAfterAttach();
+  }
+
+  protected onAfterAttach(): void {
     this.addClass(FILE_DIALOG_CLASS);
-    // const ext = PathExt.extname(oldPath);
-    // const value = (this.inputNode.value = PathExt.basename(oldPath));
     const value = this.inputNode.value;
-    console.log(value);
     this.inputNode.setSelectionRange(0, value.length);
   }
 
@@ -305,11 +306,12 @@ class NewDriveHandler extends Widget {
    */
   constructor() {
     super({ node: Private.createNewDriveNode() });
+    this.onAfterAttach();
+  }
+
+  protected onAfterAttach(): void {
     this.addClass(FILE_DIALOG_CLASS);
-    // const ext = PathExt.extname(oldPath);
-    // const value = (this.inputNode.value = PathExt.basename(oldPath));
     const value = this.inputNode.value;
-    console.log(value);
     this.inputNode.setSelectionRange(0, value.length);
   }
 
@@ -337,6 +339,10 @@ class CopyToAnotherBucket extends Widget {
    */
   constructor() {
     super({ node: Private.createCopyToAnotherBucketNode() });
+    this.onAfterAttach();
+  }
+
+  protected onAfterAttach(): void {
     this.addClass(FILE_DIALOG_CLASS);
     const name = this.inputNameNode.value;
     this.inputNameNode.setSelectionRange(0, name.length);
