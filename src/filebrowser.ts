@@ -24,13 +24,8 @@ import { CommandRegistry } from '@lumino/commands';
 import { Widget } from '@lumino/widgets';
 import { Drive } from './s3contents';
 
-// import driveSvg from '../style/driveIconFileBrowser.svg';
-import { DriveIcon, NewDriveIcon } from './icons';
-import {
-  // folderIcon,
-  FilenameSearcher,
-  IScore
-} from '@jupyterlab/ui-components';
+import { DriveIcon } from './icons';
+import { FilenameSearcher, IScore } from '@jupyterlab/ui-components';
 
 /**
  * The command IDs used to the filebrowser plugin.
@@ -38,7 +33,6 @@ import {
 namespace CommandIDs {
   export const openPath = 'filebrowser:open-path';
   export const openChangeDrive = 'drives:open-change-drive-dialog';
-  export const newDrive = 'drives:open-new-drive-dialog';
   export const copyToAnotherBucket = 'drives:copy-to-another-bucket';
 }
 
@@ -83,7 +77,6 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   ): Promise<IDefaultFileBrowser> => {
     const { commands } = app;
 
-    // manager.services.contents.addDrive(test_drive);
     app.serviceManager.contents.addDrive(S3Drive);
 
     // Manually restore and load the default file browser.
@@ -103,11 +96,6 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
       tree,
       labShell
     );
-
-    // Override folder icon with the drive one - temporary
-    // folderIcon.svgstr = driveSvg;
-
-    // add lines from browser widget plugin to define attributes
 
     return defaultBrowser;
   }
@@ -160,27 +148,6 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
         });
       },
       icon: DriveIcon.bindprops({ stylesheet: 'menuItem' })
-    });
-
-    app.commands.addCommand(CommandIDs.newDrive, {
-      execute: () => {
-        return showDialog({
-          body: new NewDriveHandler(),
-          focusNodeSelector: 'input',
-          buttons: [
-            Dialog.okButton({
-              label: 'Create',
-              ariaLabel: 'Create New Drive'
-            })
-          ]
-        }).then(result => {
-          if (result.value) {
-            // test_drive.name = result.value!;
-            // app.serviceManager.contents.addDrive(newDrive);
-          }
-        });
-      },
-      icon: NewDriveIcon.bindprops({ stylesheet: 'menuItem' })
     });
 
     app.commands.addCommand(CommandIDs.copyToAnotherBucket, {
@@ -276,39 +243,6 @@ class SwitchDriveHandler extends Widget {
    */
   constructor(oldDriveName: string) {
     super({ node: Private.createSwitchDriveNode(oldDriveName) });
-    this.onAfterAttach();
-  }
-
-  protected onAfterAttach(): void {
-    this.addClass(FILE_DIALOG_CLASS);
-    const value = this.inputNode.value;
-    this.inputNode.setSelectionRange(0, value.length);
-  }
-
-  /**
-   * Get the input text node.
-   */
-  get inputNode(): HTMLInputElement {
-    return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
-  }
-
-  /**
-   * Get the value of the widget.
-   */
-  getValue(): string {
-    return this.inputNode.value;
-  }
-}
-
-/**
- * A widget used to switch to create a new drive.
- */
-class NewDriveHandler extends Widget {
-  /**
-   * Construct a new "new-drive" dialog.
-   */
-  constructor() {
-    super({ node: Private.createNewDriveNode() });
     this.onAfterAttach();
   }
 
@@ -446,22 +380,6 @@ namespace Private {
 
     body.appendChild(existingLabel);
     body.appendChild(existingName);
-    body.appendChild(nameTitle);
-    body.appendChild(name);
-    return body;
-  }
-
-  /**
-   * Create the node for a new drive handler.
-   */
-  export function createNewDriveNode(): HTMLElement {
-    const body = document.createElement('div');
-
-    const nameTitle = document.createElement('label');
-    nameTitle.textContent = 'Create a New Drive';
-    nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
-    const name = document.createElement('input');
-
     body.appendChild(nameTitle);
     body.appendChild(name);
     return body;

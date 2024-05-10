@@ -10,7 +10,6 @@ import {
   ListObjectsV2Command,
   GetBucketLocationCommand,
   GetObjectCommand,
-  PutBucketCorsCommand,
   PutObjectCommand,
   HeadObjectCommand
 } from '@aws-sdk/client-s3';
@@ -82,11 +81,12 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
-   * The Drive base URL is set by the settingsRegistry change hook
+   * The Drive base URL
    */
   set baseUrl(url: string) {
     this._baseUrl = url;
   }
+
   /**
    * The Drive name getter
    */
@@ -480,13 +480,6 @@ export class Drive implements Contents.IDrive {
           })
         );
 
-        // retrieve information of old file
-        const newFileContents = await this._s3Client.send(
-          new GetObjectCommand({
-            Bucket: this._name,
-            Key: options.path ? options.path + '/' + name : name
-          })
-        );
         const [fileType, fileMimeType, fileFormat] = this.getFileType(
           options.ext!
         );
@@ -494,12 +487,12 @@ export class Drive implements Contents.IDrive {
         data = {
           name: name,
           path: options.path + '/' + name,
-          last_modified: newFileContents.LastModified!.toISOString(),
-          created: Date(),
+          last_modified: new Date().toISOString(),
+          created: new Date().toISOString(),
           content: body,
           format: fileFormat as Contents.FileFormat,
           mimetype: fileMimeType,
-          size: newFileContents.ContentLength,
+          size: body.length,
           writable: true,
           type: fileType
         };
@@ -624,7 +617,7 @@ export class Drive implements Contents.IDrive {
       })
     );
 
-    // if we are dealing with a directory, delete files inside it
+    // if we are dealing with a directory, delete the files inside it
     if (isDir) {
       // get list of content from deleted directory
       const command = new ListObjectsV2Command({
@@ -723,6 +716,7 @@ export class Drive implements Contents.IDrive {
         })
       );
       console.log('File name already exists!');
+      // construct new incremented name and it's corresponding path
       newFileName = await this.incrementName(newLocalPath, isDir, this._name);
       if (isDir) {
         newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
@@ -831,6 +825,7 @@ export class Drive implements Contents.IDrive {
         originalName.split('.')[originalName.split('.').length - 2];
     }
 
+    // count number of name appearances
     const command = new ListObjectsV2Command({
       Bucket: bucketName,
       Prefix: localPath.substring(0, localPath.lastIndexOf('/'))
@@ -937,35 +932,25 @@ export class Drive implements Contents.IDrive {
       })
     );
 
-    // retrieve information of file with new content
-    const info = await this._s3Client.send(
-      new GetObjectCommand({
-        Bucket: this._name,
-        Key: localPath
-      })
-    );
-
     data = {
       name: fileName,
       path: localPath,
-      last_modified: info.LastModified!.toISOString(),
+      last_modified: new Date().toISOString(),
       created: '',
       content: body,
       format: fileFormat as Contents.FileFormat,
       mimetype: fileMimeType,
-      size: info.ContentLength!,
+      size: typeof body === 'string' ? body.length : body.size,
       writable: true,
       type: fileType
     };
-
-    Contents.validateContentsModel(data);
 
     this._fileChanged.emit({
       type: 'save',
       oldValue: null,
       newValue: data
     });
-
+    Contents.validateContentsModel(data);
     return data;
   }
 
@@ -1045,6 +1030,7 @@ export class Drive implements Contents.IDrive {
       isDir = true;
     }
 
+    // construct new file or directory name for the copy
     const newFileName = await this.incrementCopyName(path, isDir, this._name);
     path = isDir ? path + '/' : path;
 
@@ -1280,35 +1266,6 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
-   * Set bucket CORS rules to allow the operations within the extension.
-   * @param name bucket name
-   */
-  async setBucketCORS(name: string) {
-    await this.s3Client.send(
-      new PutBucketCorsCommand({
-        Bucket: name,
-        CORSConfiguration: {
-          CORSRules: [
-            {
-              AllowedHeaders: ['*'],
-              AllowedMethods: ['GET', 'PUT', 'DELETE', 'HEAD'],
-              // Allow only requests from the specified origin.
-              AllowedOrigins: ['http://localhost:*'],
-              // Allow the entity tag (ETag) header to be returned in the response. The ETag header
-              // The entity tag represents a specific version of the object. The ETag reflects
-              // changes only to the contents of an object, not its metadata.
-              ExposeHeaders: ['ETag'],
-              // How long the requesting browser should cache the preflight response. After
-              // this time, the preflight request will have to be made again.
-              MaxAgeSeconds: 3600
-            }
-          ]
-        }
-      })
-    );
-  }
-
-  /**
    * Helping function for extracting region of bucket.
    * @returns region of Bucket
    */
@@ -1318,8 +1275,7 @@ export class Drive implements Contents.IDrive {
         Bucket: this._name
       })
     );
-    const region = response?.LocationConstraint as string;
-    return region;
+    return (response?.LocationConstraint as string) ?? '';
   }
   /**
    * Helping function for copying the files inside a directory
@@ -1345,7 +1301,7 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
-   * Helping functions for deleting files inside
+   * Helping function for deleting files inside
    * a directory, in the case of deleting the directory.
    *
    * @param filePath complete path of file to delete
