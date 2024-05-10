@@ -39,6 +39,7 @@ namespace CommandIDs {
   export const openPath = 'filebrowser:open-path';
   export const openChangeDrive = 'drives:open-change-drive-dialog';
   export const newDrive = 'drives:open-new-drive-dialog';
+  export const copyToAnotherBucket = 'drives:copy-to-another-bucket';
 }
 
 const FILE_BROWSER_FACTORY = 'DriveBrowser';
@@ -119,7 +120,8 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
     IDefaultFileBrowser,
     IToolbarWidgetRegistry,
     ISettingRegistry,
-    ITranslator
+    ITranslator,
+    IFileBrowserFactory
   ],
   autoStart: true,
   activate: async (
@@ -127,11 +129,14 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
     fileBrowser: IDefaultFileBrowser,
     toolbarRegistry: IToolbarWidgetRegistry,
     settingsRegistry: ISettingRegistry,
-    translator: ITranslator
+    translator: ITranslator,
+    factory: IFileBrowserFactory
   ): Promise<void> => {
     console.log(
       'jupyter-drives-browser:file-browser-toolbar pluging activated!'
     );
+
+    const { tracker } = factory;
 
     // get registered file types
     S3Drive.getRegisteredFileTypes(app);
@@ -176,6 +181,47 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
         });
       },
       icon: NewDriveIcon.bindprops({ stylesheet: 'menuItem' })
+    });
+
+    app.commands.addCommand(CommandIDs.copyToAnotherBucket, {
+      execute: async () => {
+        return showDialog({
+          body: new CopyToAnotherBucket(),
+          focusNodeSelector: 'input',
+          buttons: [
+            Dialog.okButton({
+              label: 'Copy',
+              ariaLabel: 'Copy to another Bucket'
+            })
+          ]
+        }).then(result => {
+          const widget = tracker.currentWidget;
+
+          if (widget) {
+            const path = widget
+              .selectedItems()
+              .next()!
+              .value.path.split(':')[1];
+
+            if (result.value) {
+              S3Drive.copyToAnotherBucket(
+                path,
+                result.value[1],
+                result.value[0]
+              );
+            }
+          }
+        });
+      },
+      icon: DriveIcon.bindprops({ stylesheet: 'menuItem' }),
+      label: 'Copy to another Bucket'
+    });
+
+    app.contextMenu.addItem({
+      command: CommandIDs.copyToAnotherBucket,
+      selector:
+        '.jp-SidePanel .jp-DirListing-content .jp-DirListing-item[data-isDir]',
+      rank: 10
     });
 
     toolbarRegistry.addFactory(
@@ -230,11 +276,12 @@ class SwitchDriveHandler extends Widget {
    */
   constructor(oldDriveName: string) {
     super({ node: Private.createSwitchDriveNode(oldDriveName) });
+    this.onAfterAttach();
+  }
+
+  protected onAfterAttach(): void {
     this.addClass(FILE_DIALOG_CLASS);
-    // const ext = PathExt.extname(oldPath);
-    // const value = (this.inputNode.value = PathExt.basename(oldPath));
     const value = this.inputNode.value;
-    console.log(value);
     this.inputNode.setSelectionRange(0, value.length);
   }
 
@@ -262,11 +309,12 @@ class NewDriveHandler extends Widget {
    */
   constructor() {
     super({ node: Private.createNewDriveNode() });
+    this.onAfterAttach();
+  }
+
+  protected onAfterAttach(): void {
     this.addClass(FILE_DIALOG_CLASS);
-    // const ext = PathExt.extname(oldPath);
-    // const value = (this.inputNode.value = PathExt.basename(oldPath));
     const value = this.inputNode.value;
-    console.log(value);
     this.inputNode.setSelectionRange(0, value.length);
   }
 
@@ -282,6 +330,48 @@ class NewDriveHandler extends Widget {
    */
   getValue(): string {
     return this.inputNode.value;
+  }
+}
+
+/**
+ * A widget used to copy files or directories to another bucket.
+ */
+class CopyToAnotherBucket extends Widget {
+  /**
+   * Construct a new "copy-to-another-bucket" dialog.
+   */
+  constructor() {
+    super({ node: Private.createCopyToAnotherBucketNode() });
+    this.onAfterAttach();
+  }
+
+  protected onAfterAttach(): void {
+    this.addClass(FILE_DIALOG_CLASS);
+    const name = this.inputNameNode.value;
+    this.inputNameNode.setSelectionRange(0, name.length);
+    const location = this.inputLocationNode.value;
+    this.inputLocationNode.setSelectionRange(0, location.length);
+  }
+
+  /**
+   * Get the input text node for the bucket name.
+   */
+  get inputNameNode(): HTMLInputElement {
+    return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
+  }
+
+  /**
+   * Get the input text node for the location within the bucket.
+   */
+  get inputLocationNode(): HTMLInputElement {
+    return this.node.getElementsByTagName('input')[1] as HTMLInputElement;
+  }
+
+  /**
+   * Get the value of the widget.
+   */
+  getValue(): string[] {
+    return [this.inputNameNode.value, this.inputLocationNode.value];
   }
 }
 
@@ -374,6 +464,29 @@ namespace Private {
 
     body.appendChild(nameTitle);
     body.appendChild(name);
+    return body;
+  }
+
+  /**
+   * Create the node for a copy to another bucket handler.
+   */
+  export function createCopyToAnotherBucketNode(): HTMLElement {
+    const body = document.createElement('div');
+
+    const nameTitle = document.createElement('label');
+    nameTitle.textContent = 'Copy to another Bucket';
+    nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
+    const name = document.createElement('input');
+
+    const location = document.createElement('label');
+    location.textContent = 'Location within the Bucket';
+    location.className = SWITCH_DRIVE_TITLE_CLASS;
+    const locationName = document.createElement('input');
+
+    body.appendChild(nameTitle);
+    body.appendChild(name);
+    body.appendChild(location);
+    body.appendChild(locationName);
     return body;
   }
 }
