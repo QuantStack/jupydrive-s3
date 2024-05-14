@@ -28,7 +28,7 @@ import { DriveIcon } from './icons';
 import { FilenameSearcher, IScore } from '@jupyterlab/ui-components';
 
 /**
- * The command IDs used to the filebrowser plugin.
+ * The command IDs used by the filebrowser plugin.
  */
 namespace CommandIDs {
   export const openPath = 'filebrowser:open-path';
