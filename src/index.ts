@@ -62,7 +62,7 @@ const S3Drive = new Drive({
 /**
  * The default file browser factory provider.
  */
-export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
+const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   id: 'jupyter-drives-browser:default-file-browser',
   description: 'The default file browser factory provider',
   provides: IDefaultFileBrowser,
@@ -101,7 +101,7 @@ export const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   }
 };
 
-export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
+const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
   id: 'jupyter-drives-browser:file-browser-toolbar',
   description: 'The toolbar for the drives file browser',
   requires: [
@@ -120,10 +120,6 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
     translator: ITranslator,
     factory: IFileBrowserFactory
   ): Promise<void> => {
-    console.log(
-      'jupyter-drives-browser:file-browser-toolbar pluging activated!'
-    );
-
     const { tracker } = factory;
 
     // get registered file types
