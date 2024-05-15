@@ -129,6 +129,9 @@ export const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
     // get registered file types
     S3Drive.getRegisteredFileTypes(app);
 
+    // add the filebrowser model to the drive
+    S3Drive.fileBrowserModel = fileBrowser.model;
+
     app.commands.addCommand(CommandIDs.openChangeDrive, {
       execute: () => {
         return showDialog({
