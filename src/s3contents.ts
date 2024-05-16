@@ -2,6 +2,7 @@ import { Signal, ISignal } from '@lumino/signaling';
 import { Contents, ServerConnection } from '@jupyterlab/services';
 import { URLExt } from '@jupyterlab/coreutils';
 import { JupyterFrontEnd } from '@jupyterlab/application';
+import { FileBrowserModel } from '@jupyterlab/filebrowser';
 
 import {
   CopyObjectCommand,
@@ -181,6 +182,20 @@ export class Drive implements Contents.IDrive {
    */
   get disposed(): ISignal<this, void> {
     return this._disposed;
+  }
+
+  /**
+   * Set the filebrowser model connected to the drive.
+   */
+  set fileBrowserModel(fileBrowserModel: FileBrowserModel) {
+    this._fileBrowserModel = fileBrowserModel;
+  }
+
+  /**
+   * Get the filebrowser model connected to the drive.
+   */
+  get fileBrowserModel(): FileBrowserModel {
+    return this._fileBrowserModel!;
   }
 
   /**
@@ -524,6 +539,9 @@ export class Drive implements Contents.IDrive {
       console.warn('Type of new element is undefined');
     }
 
+    // manually refresh filebrowser contents
+    this._fileBrowserModel!.refresh();
+
     Contents.validateContentsModel(data);
     this._fileChanged.emit({
       type: 'new',
@@ -642,6 +660,9 @@ export class Drive implements Contents.IDrive {
         command.input.ContinuationToken = NextContinuationToken;
       }
     }
+
+    // manually refresh filebrowser contents
+    this._fileBrowserModel!.refresh();
 
     this._fileChanged.emit({
       type: 'delete',
@@ -785,6 +806,9 @@ export class Drive implements Contents.IDrive {
       writable: true,
       type: fileType
     };
+
+    // manually refresh filebrowser contents
+    this._fileBrowserModel!.refresh();
 
     this._fileChanged.emit({
       type: 'rename',
@@ -945,6 +969,9 @@ export class Drive implements Contents.IDrive {
       type: fileType
     };
 
+    // manually refresh filebrowser contents
+    this._fileBrowserModel!.refresh();
+
     this._fileChanged.emit({
       type: 'save',
       oldValue: null,
@@ -1092,6 +1119,9 @@ export class Drive implements Contents.IDrive {
       writable: true,
       type: fileType
     };
+
+    // manually refresh filebrowser contents
+    this._fileBrowserModel!.refresh();
 
     this._fileChanged.emit({
       type: 'new',
@@ -1386,6 +1416,7 @@ export class Drive implements Contents.IDrive {
   private _isDisposed: boolean = false;
   private _disposed = new Signal<this, void>(this);
   private _registeredFileTypes: IRegisteredFileTypes = {};
+  private _fileBrowserModel: FileBrowserModel | undefined;
 }
 
 export namespace Drive {
