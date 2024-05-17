@@ -56,11 +56,17 @@ const FILE_DIALOG_CLASS = 'jp-FileDialog';
  */
 const SWITCH_DRIVE_TITLE_CLASS = 'jp-new-drive-title';
 
+/**
+ * An interface to describe S3 authentication provided by a plugin.
+ */
 interface IS3Auth {
   bucket: string;
   config: S3ClientConfig;
 }
 
+/**
+ * A token for a plugin that provides S3 authentication.
+ */
 const IS3Auth = new Token<IS3Auth>('jupyter-drives-browser:auth-file-browser');
 
 /**
