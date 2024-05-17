@@ -57,17 +57,21 @@ const FILE_DIALOG_CLASS = 'jp-FileDialog';
 const SWITCH_DRIVE_TITLE_CLASS = 'jp-new-drive-title';
 
 /**
- * An interface to describe S3 authentication provided by a plugin.
+ * A promise that resolves to S3 authentication credentials.
  */
-interface IS3Auth {
-  bucket: string;
-  config: S3ClientConfig;
+export interface IS3Auth {
+  factory: () => Promise<{
+    bucket: string;
+    config: S3ClientConfig;
+  }>;
 }
 
 /**
  * A token for a plugin that provides S3 authentication.
  */
-const IS3Auth = new Token<IS3Auth>('jupyter-drives-browser:auth-file-browser');
+export const IS3Auth = new Token<IS3Auth>(
+  'jupyter-drives-browser:auth-file-browser'
+);
 
 /**
  * The auth/credentials provider for the file browser.
@@ -76,18 +80,20 @@ const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
   id: 'jupyter-drives-browser:auth-file-browser',
   description: 'The default file browser auth/credentials provider',
   provides: IS3Auth,
-  activate: async (): Promise<IS3Auth> => {
+  activate: (): IS3Auth => {
     return {
-      bucket: 'jupyter-drives-test-bucket-1',
-      config: {
-        forcePathStyle: true,
-        endpoint: 'https://example.com/s3',
-        region: 'eu-west-1',
-        credentials: {
-          accessKeyId: 'abcdefghijklmnopqrstuvwxyz',
-          secretAccessKey: 'SECRET123456789abcdefghijklmnopqrstuvwxyz'
+      factory: async () => ({
+        bucket: 'jupyter-drives-test-bucket-1',
+        config: {
+          forcePathStyle: true,
+          endpoint: 'https://example.com/s3',
+          region: 'eu-west-1',
+          credentials: {
+            accessKeyId: 'abcdefghijklmnopqrstuvwxyz',
+            secretAccessKey: 'SECRET123456789abcdefghijklmnopqrstuvwxyz'
+          }
         }
-      }
+      })
     };
   }
 };
@@ -104,12 +110,13 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   activate: async (
     app: JupyterFrontEnd,
     fileBrowserFactory: IFileBrowserFactory,
-    auth: IS3Auth,
+    s3auth: IS3Auth,
     router: IRouter | null,
     tree: JupyterFrontEnd.ITreeResolver | null,
     labShell: ILabShell | null
   ): Promise<IDefaultFileBrowser> => {
     const { commands } = app;
+    const auth = await s3auth.factory();
     // create S3 drive
     const S3Drive = new Drive({ name: auth.bucket, config: auth.config });
 
