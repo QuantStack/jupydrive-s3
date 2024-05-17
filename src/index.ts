@@ -26,6 +26,8 @@ import { Drive } from './s3contents';
 
 import { DriveIcon } from './icons';
 import { FilenameSearcher, IScore } from '@jupyterlab/ui-components';
+import { Token } from '@lumino/coreutils';
+import { S3ClientConfig } from '@aws-sdk/client-s3';
 
 /**
  * The command IDs used by the filebrowser plugin.
@@ -54,6 +56,36 @@ const FILE_DIALOG_CLASS = 'jp-FileDialog';
  */
 const SWITCH_DRIVE_TITLE_CLASS = 'jp-new-drive-title';
 
+interface IS3Auth {
+  bucket: string;
+  config: S3ClientConfig;
+}
+
+const IS3Auth = new Token<IS3Auth>('jupyter-drives-browser:auth-file-browser');
+
+/**
+ * The auth/credentials provider for the file browser.
+ */
+const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
+  id: 'jupyter-drives-browser:auth-file-browser',
+  description: 'The default file browser auth/credentials provider',
+  provides: IS3Auth,
+  activate: async (): Promise<IS3Auth> => {
+    return {
+      bucket: 'jupyter-drives-test-bucket-1',
+      config: {
+        forcePathStyle: true,
+        endpoint: 'https://example.com/s3',
+        region: 'eu-west-1',
+        credentials: {
+          accessKeyId: 'abcdefghijklmnopqrstuvwxyz',
+          secretAccessKey: 'SECRET123456789abcdefghijklmnopqrstuvwxyz'
+        }
+      }
+    };
+  }
+};
+
 /**
  * The default file browser factory provider.
  */
@@ -61,20 +93,19 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   id: 'jupyter-drives-browser:default-file-browser',
   description: 'The default file browser factory provider',
   provides: IDefaultFileBrowser,
-  requires: [IFileBrowserFactory],
+  requires: [IFileBrowserFactory, IS3Auth],
   optional: [IRouter, JupyterFrontEnd.ITreeResolver, ILabShell],
   activate: async (
     app: JupyterFrontEnd,
     fileBrowserFactory: IFileBrowserFactory,
+    auth: IS3Auth,
     router: IRouter | null,
     tree: JupyterFrontEnd.ITreeResolver | null,
     labShell: ILabShell | null
   ): Promise<IDefaultFileBrowser> => {
     const { commands } = app;
     // create S3 drive
-    const S3Drive = new Drive({
-      name: 'jupyter-drives-test-bucket-1'
-    });
+    const S3Drive = new Drive({ name: auth.bucket, config: auth.config });
 
     app.serviceManager.contents.addDrive(S3Drive);
 
@@ -109,6 +140,9 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   }
 };
 
+/**
+ * File browser toolbar buttons.
+ */
 const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
   id: 'jupyter-drives-browser:file-browser-toolbar',
   description: 'The toolbar for the drives file browser',
@@ -174,6 +208,7 @@ const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
  * Export the plugins as default.
  */
 const plugins: JupyterFrontEndPlugin<any>[] = [
+  authFileBrowser,
   defaultFileBrowser,
   toolbarFileBrowser
 ];
