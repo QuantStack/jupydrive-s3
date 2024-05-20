@@ -12,7 +12,8 @@ import {
   GetBucketLocationCommand,
   GetObjectCommand,
   PutObjectCommand,
-  HeadObjectCommand
+  HeadObjectCommand,
+  S3ClientConfig
 } from '@aws-sdk/client-s3';
 
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -47,10 +48,12 @@ export class Drive implements Contents.IDrive {
   constructor(options: Drive.IOptions) {
     this._serverSettings = ServerConnection.makeSettings();
 
-    this._s3Client = new S3Client({});
-
+    this._s3Client = new S3Client(options.config ?? {});
     this._name = options.name;
-    this._baseUrl = URLExt.join('https://s3.amazonaws.com/', this._name);
+    this._baseUrl = URLExt.join(
+      (options.config?.endpoint as string) ?? 'https://s3.amazonaws.com/',
+      this._name
+    );
     this._provider = 'S3';
 
     this.getRegion().then((region: string) => {
@@ -1424,6 +1427,11 @@ export namespace Drive {
    * The options used to initialize a `Drive`.
    */
   export interface IOptions {
+    /**
+     * S3 client configuration if available
+     */
+    config?: S3ClientConfig;
+
     /**
      * The name for the `Drive`, which is used in file
      * paths to disambiguate it from other drives.
