@@ -1,6 +1,6 @@
 {
     "name": "jupyter-drives-browser",
-    "version": "0.1.0",
+    "version": "0.1.0-alpha",
     "description": "A JupyterLab extension which enables client-side drives access.",
     "keywords": [
         "jupyter",
