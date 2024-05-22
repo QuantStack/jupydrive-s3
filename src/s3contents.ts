@@ -46,19 +46,24 @@ export class Drive implements Contents.IDrive {
    * @param options - The options used to initialize the object.
    */
   constructor(options: Drive.IOptions) {
+    const { config, name } = options;
     this._serverSettings = ServerConnection.makeSettings();
-
-    this._s3Client = new S3Client(options.config ?? {});
-    this._name = options.name;
+    this._s3Client = new S3Client(config ?? {});
+    this._name = name;
     this._baseUrl = URLExt.join(
-      (options.config?.endpoint as string) ?? 'https://s3.amazonaws.com/',
+      (config?.endpoint as string) ?? 'https://s3.amazonaws.com/',
       this._name
     );
     this._provider = 'S3';
-
-    this.getRegion().then((region: string) => {
-      this._region = region!;
-    });
+    const region = config?.region;
+    if (typeof region === 'string') {
+      this._region = region;
+    } else {
+      const regionPromise = region ?? this.getRegion;
+      regionPromise().then((region: string) => {
+        this._region = region!;
+      });
+    }
 
     this._registeredFileTypes = {};
   }
