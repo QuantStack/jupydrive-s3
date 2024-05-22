@@ -39,6 +39,10 @@ export interface IRegisteredFileTypes {
   };
 }
 
+interface IContentsList {
+  [fileName: string]: Contents.IModel;
+}
+
 export class Drive implements Contents.IDrive {
   /**
    * Construct a new drive object.
@@ -257,7 +261,7 @@ export class Drive implements Contents.IDrive {
 
     // check if we are getting the list of files from the drive
     if (!path) {
-      const content: Contents.IModel[] = [];
+      const fileList: IContentsList = {};
 
       const command = new ListObjectsV2Command({
         Bucket: this._name
@@ -271,25 +275,23 @@ export class Drive implements Contents.IDrive {
 
         if (Contents) {
           Contents.forEach(c => {
-            // checking if we are dealing with the file inside a folder
-            if (c.Key!.split('/').length === 1 || c.Key!.split('/')[1] === '') {
-              const [fileType, fileMimeType, fileFormat] = this.getFileType(
-                c.Key!.split('.')[1]
-              );
+            const fileName = c.Key!.split('/')[0];
+            const [fileType, fileMimeType, fileFormat] = this.getFileType(
+              fileName.split('.')[1]
+            );
 
-              content.push({
-                name: !c.Key!.split('.')[1] ? c.Key!.slice(0, -1) : c.Key!,
-                path: c.Key!,
-                last_modified: c.LastModified!.toISOString(),
-                created: '',
-                content: !c.Key!.split('.')[1] ? [] : null,
-                format: fileFormat as Contents.FileFormat,
-                mimetype: fileMimeType,
-                size: c.Size!,
-                writable: true,
-                type: fileType
-              });
-            }
+            fileList[fileName] = fileList[fileName] ?? {
+              name: fileName,
+              path: fileName,
+              last_modified: c.LastModified!.toISOString(),
+              created: '',
+              content: !fileName.split('.')[1] ? [] : null,
+              format: fileFormat as Contents.FileFormat,
+              mimetype: fileMimeType,
+              size: c.Size!,
+              writable: true,
+              type: fileType
+            };
           });
         }
         if (isTruncated) {
@@ -303,7 +305,7 @@ export class Drive implements Contents.IDrive {
         path: this._name,
         last_modified: '',
         created: '',
-        content: content,
+        content: Object.values(fileList),
         format: 'json',
         mimetype: '',
         size: undefined,
@@ -316,11 +318,11 @@ export class Drive implements Contents.IDrive {
 
       // listing contents of a folder
       if (currentPath.indexOf('.') === -1) {
-        const content: Contents.IModel[] = [];
+        const fileList: IContentsList = {};
 
         const command = new ListObjectsV2Command({
           Bucket: this._name,
-          Prefix: currentPath + '/'
+          Prefix: path + '/'
         });
 
         let isTruncated: boolean | undefined = true;
@@ -332,24 +334,24 @@ export class Drive implements Contents.IDrive {
           if (Contents) {
             Contents.forEach(c => {
               // checking if we are dealing with the file inside a folder
-              if (c.Key !== currentPath + '/') {
-                const fileName = c.Key!.split('/')[1];
+              if (c.Key !== path + '/') {
+                const fileName = c.Key!.replace(path + '/', '').split('/')[0];
                 const [fileType, fileMimeType, fileFormat] = this.getFileType(
-                  c.Key!.split('.')[1]
+                  fileName.split('.')[1]
                 );
 
-                content.push({
+                fileList[fileName] = fileList[fileName] ?? {
                   name: fileName,
                   path: path + '/' + fileName,
                   last_modified: c.LastModified!.toISOString(),
                   created: '',
-                  content: !c.Key!.split('.')[1] ? [] : null,
+                  content: !fileName.split('.')[1] ? [] : null,
                   format: fileFormat as Contents.FileFormat,
                   mimetype: fileMimeType,
                   size: c.Size!,
                   writable: true,
                   type: fileType
-                });
+                };
               }
             });
           }
@@ -364,7 +366,7 @@ export class Drive implements Contents.IDrive {
           path: path + '/',
           last_modified: '',
           created: '',
-          content: content,
+          content: Object.values(fileList),
           format: 'json',
           mimetype: '',
           size: undefined,
