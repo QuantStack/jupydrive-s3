@@ -619,7 +619,7 @@ export class Drive implements Contents.IDrive {
     // get list of contents with given prefix (path)
     const command = new ListObjectsV2Command({
       Bucket: this._name,
-      Prefix: localPath
+      Prefix: localPath.split('.').length === 1 ? localPath + '/' : localPath
     });
 
     let isTruncated: boolean | undefined = true;
