@@ -677,6 +677,33 @@ export class Drive implements Contents.IDrive {
       newFileName!.split('.')[1]
     );
 
+    const isDir: boolean = oldLocalPath.split('.').length === 1;
+
+    // check if file with new name already exists
+    try {
+      await this._s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this._name,
+          Key: newLocalPath
+        })
+      );
+      console.log('File name already exists!');
+      // construct new incremented name and it's corresponding path
+      newFileName = await this.incrementName(newLocalPath, isDir, this._name);
+      if (isDir) {
+        newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
+      }
+      newLocalPath = isDir
+        ? newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
+          newFileName +
+          '/'
+        : newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
+          newFileName;
+    } catch (e) {
+      // function throws error as the file name doesn't exist
+      console.log("Name doesn't exist!");
+    }
+
     // list contents of path - contents of directory or one file
     const command = new ListObjectsV2Command({
       Bucket: this._name,
@@ -690,41 +717,6 @@ export class Drive implements Contents.IDrive {
         await this._s3Client.send(command);
 
       if (Contents) {
-        const isDir: boolean =
-          Contents.length > 1 ||
-          Contents![0].Key![Contents![0].Key!.length - 1] === '/'
-            ? true
-            : false;
-
-        // check if file with new name already exists
-        try {
-          await this._s3Client.send(
-            new HeadObjectCommand({
-              Bucket: this._name,
-              Key: newLocalPath
-            })
-          );
-          console.log('File name already exists!');
-          // construct new incremented name and it's corresponding path
-          newFileName = await this.incrementName(
-            newLocalPath,
-            isDir,
-            this._name
-          );
-          if (isDir) {
-            newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
-          }
-          newLocalPath = isDir
-            ? newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
-              newFileName +
-              '/'
-            : newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
-              newFileName;
-        } catch (e) {
-          // function throws error as the file name doesn't exist
-          console.log("Name doesn't exist!");
-        }
-
         // retrieve information of file or directory
         const fileContents = await this._s3Client.send(
           new GetObjectCommand({
@@ -1002,6 +994,13 @@ export class Drive implements Contents.IDrive {
     toDir: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
+    const isDir: boolean = path.split('.').length === 1;
+
+    // construct new file or directory name for the copy
+    let newFileName = await this.incrementCopyName(path, isDir, this._name);
+    newFileName = toDir !== '' ? toDir + '/' + newFileName : newFileName;
+    path = isDir ? path + '/' : path;
+
     // list contents of path - contents of directory or one file
     const command = new ListObjectsV2Command({
       Bucket: this._name,
@@ -1015,53 +1014,42 @@ export class Drive implements Contents.IDrive {
         await this._s3Client.send(command);
 
       if (Contents) {
-        const isDir: boolean =
-          Contents.length > 1 ||
-          Contents![0].Key![Contents![0].Key!.length - 1] === '/'
-            ? true
-            : false;
-
-        // construct new file or directory name for the copy
-        let newFileName = await this.incrementCopyName(path, isDir, this._name);
-        newFileName = toDir !== '' ? toDir + '/' + newFileName : newFileName;
-        path = isDir ? path + '/' : path;
-
         Contents.forEach(c => {
           const remainingFilePath = c.Key!.substring(path.length);
           // copy each file from old directory to new location
           this.copy_file(remainingFilePath, path, newFileName, this._name);
         });
-
-        const [fileType, fileMimeType, fileFormat] = this.getFileType(
-          newFileName.split('.')[1]
-        );
-
-        // retrieve information of new file
-        const newFileContents = await this._s3Client.send(
-          new GetObjectCommand({
-            Bucket: this._name,
-            Key: newFileName
-          })
-        );
-
-        data = {
-          name: newFileName,
-          path: toDir + '/' + newFileName,
-          last_modified: newFileContents.LastModified!.toISOString(),
-          created: new Date().toISOString(),
-          content: await newFileContents.Body!.transformToString(),
-          format: fileFormat as Contents.FileFormat,
-          mimetype: fileMimeType,
-          size: newFileContents.ContentLength!,
-          writable: true,
-          type: fileType
-        };
       }
       if (isTruncated) {
         isTruncated = IsTruncated;
       }
       command.input.ContinuationToken = NextContinuationToken;
     }
+
+    const [fileType, fileMimeType, fileFormat] = this.getFileType(
+      newFileName.split('.')[1]
+    );
+
+    // retrieve information of new file
+    const newFileContents = await this._s3Client.send(
+      new GetObjectCommand({
+        Bucket: this._name,
+        Key: newFileName
+      })
+    );
+
+    data = {
+      name: newFileName,
+      path: toDir + '/' + newFileName,
+      last_modified: newFileContents.LastModified!.toISOString(),
+      created: new Date().toISOString(),
+      content: await newFileContents.Body!.transformToString(),
+      format: fileFormat as Contents.FileFormat,
+      mimetype: fileMimeType,
+      size: newFileContents.ContentLength!,
+      writable: true,
+      type: fileType
+    };
 
     // manually refresh filebrowser contents
     this._fileBrowserModel!.refresh();
