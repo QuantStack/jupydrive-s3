@@ -616,54 +616,28 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves when the file is deleted.
    */
   async delete(localPath: string): Promise<void> {
-    // check if we are dealing with a directory
-    const info = await this.s3Client.send(
-      new ListObjectsV2Command({
-        Bucket: this._name,
-        Prefix: localPath
-      })
-    );
+    // get list of contents with given prefix (path)
+    const command = new ListObjectsV2Command({
+      Bucket: this._name,
+      Prefix: localPath
+    });
 
-    let isDir = 0;
-    if (
-      info.Contents!.length > 1 ||
-      info.Contents![0].Key![info.Contents![0].Key!.length - 1] === '/'
-    ) {
-      localPath = localPath + '/';
-      isDir = 1;
-    }
+    let isTruncated: boolean | undefined = true;
 
-    await this.s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: this._name,
-        Key: localPath
-      })
-    );
+    while (isTruncated) {
+      const { Contents, IsTruncated, NextContinuationToken } =
+        await this._s3Client.send(command);
 
-    // if we are dealing with a directory, delete the files inside it
-    if (isDir) {
-      // get list of content from deleted directory
-      const command = new ListObjectsV2Command({
-        Bucket: this._name,
-        Prefix: localPath
-      });
-
-      let isTruncated: boolean | undefined = true;
-
-      while (isTruncated) {
-        const { Contents, IsTruncated, NextContinuationToken } =
-          await this._s3Client.send(command);
-
-        if (Contents) {
-          Contents.forEach(c => {
-            this.delete_file(c.Key!);
-          });
-        }
-        if (isTruncated) {
-          isTruncated = IsTruncated;
-        }
-        command.input.ContinuationToken = NextContinuationToken;
+      if (Contents) {
+        Contents.forEach(c => {
+          // delete each file with given path
+          this.delete_file(c.Key!);
+        });
       }
+      if (isTruncated) {
+        isTruncated = IsTruncated;
+      }
+      command.input.ContinuationToken = NextContinuationToken;
     }
 
     // manually refresh filebrowser contents
