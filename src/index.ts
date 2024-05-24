@@ -83,14 +83,17 @@ const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
   activate: (): IS3Auth => {
     return {
       factory: async () => ({
-        bucket: 'jupyter-drives-test-bucket-1',
+        bucket: process.env.S3_BUCKET ?? 'jupyter-drives-test-bucket-1',
         config: {
           forcePathStyle: true,
-          endpoint: 'https://example.com/s3',
-          region: 'eu-west-1',
+          endpoint: process.env.S3_ENDPOINT ?? 'https://example.com/s3',
+          region: process.env.S3_REGION ?? 'eu-west-1',
           credentials: {
-            accessKeyId: 'abcdefghijklmnopqrstuvwxyz',
-            secretAccessKey: 'SECRET123456789abcdefghijklmnopqrstuvwxyz'
+            accessKeyId:
+              process.env.S3_ACCESS_KEY_ID ?? 'abcdefghijklmnopqrstuvwxyz',
+            secretAccessKey:
+              process.env.S3_SECRET_ACCESS_KEY ??
+              'SECRET123456789abcdefghijklmnopqrstuvwxyz'
           }
         }
       })

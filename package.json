@@ -71,6 +71,7 @@
         "@typescript-eslint/eslint-plugin": "^6.1.0",
         "@typescript-eslint/parser": "^6.1.0",
         "css-loader": "^6.7.1",
+        "dotenv-webpack": "^8.1.0",
         "eslint": "^8.36.0",
         "eslint-config-prettier": "^8.8.0",
         "eslint-plugin-prettier": "^5.0.0",
@@ -102,7 +103,8 @@
         "disabledExtensions": [
             "@jupyterlab/filebrowser-extension:default-file-browser"
         ],
-        "schemaDir": "schema"
+        "schemaDir": "schema",
+        "webpackConfig": "./dev.webpack.config.js"
     },
     "eslintIgnore": [
         "node_modules",
