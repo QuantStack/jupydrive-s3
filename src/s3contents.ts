@@ -2,7 +2,6 @@ import { Signal, ISignal } from '@lumino/signaling';
 import { Contents, ServerConnection } from '@jupyterlab/services';
 import { URLExt } from '@jupyterlab/coreutils';
 import { JupyterFrontEnd } from '@jupyterlab/application';
-import { FileBrowserModel } from '@jupyterlab/filebrowser';
 
 import {
   CopyObjectCommand,
@@ -194,20 +193,6 @@ export class Drive implements Contents.IDrive {
    */
   get disposed(): ISignal<this, void> {
     return this._disposed;
-  }
-
-  /**
-   * Set the filebrowser model connected to the drive.
-   */
-  set fileBrowserModel(fileBrowserModel: FileBrowserModel) {
-    this._fileBrowserModel = fileBrowserModel;
-  }
-
-  /**
-   * Get the filebrowser model connected to the drive.
-   */
-  get fileBrowserModel(): FileBrowserModel {
-    return this._fileBrowserModel!;
   }
 
   /**
@@ -549,9 +534,6 @@ export class Drive implements Contents.IDrive {
       console.warn('Type of new element is undefined');
     }
 
-    // manually refresh filebrowser contents
-    this._fileBrowserModel!.refresh();
-
     Contents.validateContentsModel(data);
     this._fileChanged.emit({
       type: 'new',
@@ -634,19 +616,18 @@ export class Drive implements Contents.IDrive {
         await this._s3Client.send(command);
 
       if (Contents) {
-        Contents.forEach(c => {
-          // delete each file with given path
-          this.delete_file(c.Key!);
-        });
+        await Promise.all(
+          Contents.map(c => {
+            // delete each file with given path
+            this.delete_file(c.Key!);
+          })
+        );
       }
       if (isTruncated) {
         isTruncated = IsTruncated;
       }
       command.input.ContinuationToken = NextContinuationToken;
     }
-
-    // manually refresh filebrowser contents
-    this._fileBrowserModel!.refresh();
 
     this._fileChanged.emit({
       type: 'delete',
@@ -745,28 +726,24 @@ export class Drive implements Contents.IDrive {
           type: fileType
         };
 
-        Contents.forEach(c => {
+        const promises = Contents.map(async c => {
           const remainingFilePath = c.Key!.substring(oldLocalPath.length);
-          // copy each file from old directory to new location
-          this.copy_file(
+          // wait for copy action to resolve, delete original file only if it succeeds
+          await this.copy_file(
             remainingFilePath,
             oldLocalPath,
             newLocalPath,
             this._name
           );
+          return this.delete_file(oldLocalPath + remainingFilePath);
         });
+        await Promise.all(promises);
       }
       if (isTruncated) {
         isTruncated = IsTruncated;
       }
       command.input.ContinuationToken = NextContinuationToken;
     }
-
-    // delete old file or directory with its contents
-    this.delete(oldLocalPath);
-
-    // manually refresh filebrowser contents
-    this._fileBrowserModel!.refresh();
 
     this._fileChanged.emit({
       type: 'rename',
@@ -927,9 +904,6 @@ export class Drive implements Contents.IDrive {
       type: fileType
     };
 
-    // manually refresh filebrowser contents
-    this._fileBrowserModel!.refresh();
-
     this._fileChanged.emit({
       type: 'save',
       oldValue: null,
@@ -1019,11 +993,17 @@ export class Drive implements Contents.IDrive {
         await this._s3Client.send(command);
 
       if (Contents) {
-        Contents.forEach(c => {
+        const promises = Contents.map(c => {
           const remainingFilePath = c.Key!.substring(path.length);
           // copy each file from old directory to new location
-          this.copy_file(remainingFilePath, path, newFileName, this._name);
+          return this.copy_file(
+            remainingFilePath,
+            path,
+            newFileName,
+            this._name
+          );
         });
+        await Promise.all(promises);
       }
       if (isTruncated) {
         isTruncated = IsTruncated;
@@ -1055,9 +1035,6 @@ export class Drive implements Contents.IDrive {
       writable: true,
       type: fileType
     };
-
-    // manually refresh filebrowser contents
-    this._fileBrowserModel!.refresh();
 
     this._fileChanged.emit({
       type: 'new',
@@ -1114,11 +1091,17 @@ export class Drive implements Contents.IDrive {
         );
         path = isDir ? path + '/' : path;
 
-        Contents.forEach(c => {
+        const promises = Contents.map(c => {
           const remainingFilePath = c.Key!.substring(path.length);
           // copy each file from old directory to new location
-          this.copy_file(remainingFilePath, path, newFileName, bucketName);
+          return this.copy_file(
+            remainingFilePath,
+            path,
+            newFileName,
+            bucketName
+          );
         });
+        await Promise.all(promises);
 
         const [fileType, fileMimeType, fileFormat] = this.getFileType(
           newFileName.split('.')[1]
@@ -1335,7 +1318,6 @@ export class Drive implements Contents.IDrive {
   private _isDisposed: boolean = false;
   private _disposed = new Signal<this, void>(this);
   private _registeredFileTypes: IRegisteredFileTypes = {};
-  private _fileBrowserModel: FileBrowserModel | undefined;
 }
 
 export namespace Drive {
