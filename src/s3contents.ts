@@ -882,7 +882,7 @@ export class Drive implements Contents.IDrive {
     }
 
     // save file with new content by overwritting existing file
-    const promise = await this._s3Client.send(
+    await this._s3Client.send(
       new PutObjectCommand({
         Bucket: this._name,
         Key: localPath,
@@ -890,7 +890,6 @@ export class Drive implements Contents.IDrive {
         CacheControl: 'no-cache'
       })
     );
-    await Promise.all([promise]);
 
     data = {
       name: fileName,
@@ -997,7 +996,7 @@ export class Drive implements Contents.IDrive {
         const promises = Contents.map(c => {
           const remainingFilePath = c.Key!.substring(path.length);
           // copy each file from old directory to new location
-          this.copy_file(remainingFilePath, path, newFileName, this._name);
+          return this.copy_file(remainingFilePath, path, newFileName, this._name);
         });
         await Promise.all(promises);
       }
@@ -1087,10 +1086,10 @@ export class Drive implements Contents.IDrive {
         );
         path = isDir ? path + '/' : path;
 
-        const promises = Contents.map(async c => {
+        const promises = Contents.map(c => {
           const remainingFilePath = c.Key!.substring(path.length);
           // copy each file from old directory to new location
-          await this.copy_file(
+          return this.copy_file(
             remainingFilePath,
             path,
             newFileName,
