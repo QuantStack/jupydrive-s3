@@ -616,11 +616,12 @@ export class Drive implements Contents.IDrive {
         await this._s3Client.send(command);
 
       if (Contents) {
-        const promises = Contents.map(async c => {
-          // delete each file with given path
-          await this.delete_file(c.Key!);
-        });
-        await Promise.all(promises);
+        await Promise.all(
+          Contents.map(c => {
+            // delete each file with given path
+            this.delete_file(c.Key!);
+          })
+        );
       }
       if (isTruncated) {
         isTruncated = IsTruncated;
@@ -727,15 +728,14 @@ export class Drive implements Contents.IDrive {
 
         const promises = Contents.map(async c => {
           const remainingFilePath = c.Key!.substring(oldLocalPath.length);
-
+          // wait for copy action to resolve, delete original file only if it succeeds
           await this.copy_file(
             remainingFilePath,
             oldLocalPath,
             newLocalPath,
             this._name
-          ).finally(async () => {
-            await this.delete_file(oldLocalPath + remainingFilePath);
-          });
+          );
+          return this.delete_file(oldLocalPath + remainingFilePath);
         });
         await Promise.all(promises);
       }
@@ -996,7 +996,12 @@ export class Drive implements Contents.IDrive {
         const promises = Contents.map(c => {
           const remainingFilePath = c.Key!.substring(path.length);
           // copy each file from old directory to new location
-          return this.copy_file(remainingFilePath, path, newFileName, this._name);
+          return this.copy_file(
+            remainingFilePath,
+            path,
+            newFileName,
+            this._name
+          );
         });
         await Promise.all(promises);
       }
