@@ -127,7 +127,7 @@ export class Drive implements Contents.IDrive {
    * The Drive root setter
    */
   set root(root: string) {
-    this._root = root;
+    this.formatRoot(root).then(root => (this._root = root));
   }
 
   /**

@@ -243,20 +243,25 @@ namespace Private {
    */
   const createSwitchDriveNode = (oldDriveName: string): HTMLElement => {
     const body = document.createElement('div');
+
     const existingLabel = document.createElement('label');
-    existingLabel.textContent = 'Current Drive';
-    const existingName = document.createElement('span');
-    existingName.textContent = oldDriveName;
+    existingLabel.textContent = 'Current Drive: ' + oldDriveName;
 
     const nameTitle = document.createElement('label');
     nameTitle.textContent = 'Switch to another Drive';
     nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
     const name = document.createElement('input');
 
+    const root = document.createElement('label');
+    root.textContent = 'with root';
+    root.className = SWITCH_DRIVE_TITLE_CLASS;
+    const rootPath = document.createElement('input');
+
     body.appendChild(existingLabel);
-    body.appendChild(existingName);
     body.appendChild(nameTitle);
     body.appendChild(name);
+    body.appendChild(root);
+    body.appendChild(rootPath);
     return body;
   };
 
@@ -339,22 +344,31 @@ namespace Private {
 
     protected onAfterAttach(): void {
       this.addClass(FILE_DIALOG_CLASS);
-      const value = this.inputNode.value;
-      this.inputNode.setSelectionRange(0, value.length);
+      const name = this.inputNameNode.value;
+      this.inputNameNode.setSelectionRange(0, name.length);
+      const root = this.inputRootNode.value;
+      this.inputRootNode.setSelectionRange(0, root.length);
     }
 
     /**
-     * Get the input text node.
+     * Get the input text node for bucket name.
      */
-    get inputNode(): HTMLInputElement {
+    get inputNameNode(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
+    }
+
+    /**
+     * Get the input text node for path to root.
+     */
+    get inputRootNode(): HTMLInputElement {
+      return this.node.getElementsByTagName('input')[1] as HTMLInputElement;
     }
 
     /**
      * Get the value of the widget.
      */
-    getValue(): string {
-      return this.inputNode.value;
+    getValue(): string[] {
+      return [this.inputNameNode.value, this.inputRootNode.value];
     }
   }
 
@@ -377,7 +391,8 @@ namespace Private {
           ]
         }).then(result => {
           if (result.value) {
-            drive.name = result.value;
+            drive.name = result.value[0];
+            drive.root = result.value[1];
             app.serviceManager.contents.addDrive(drive);
           }
         });
