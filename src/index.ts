@@ -144,10 +144,6 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
       }
     );
 
-    // TODO: Refactor this.
-    // add the filebrowser model to the drive
-    S3Drive.fileBrowserModel = defaultBrowser.model;
-
     Private.addCommands(app, S3Drive, fileBrowserFactory);
 
     void Private.restoreBrowser(
