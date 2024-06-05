@@ -62,6 +62,7 @@ const SWITCH_DRIVE_TITLE_CLASS = 'jp-new-drive-title';
 export interface IS3Auth {
   factory: () => Promise<{
     bucket: string;
+    root: string;
     config: S3ClientConfig;
   }>;
 }
@@ -84,6 +85,7 @@ const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
     return {
       factory: async () => ({
         bucket: process.env.JP_S3_BUCKET ?? 'jupyter-drives-test-bucket-1',
+        root: process.env.JP_S3_ROOT ?? '',
         config: {
           forcePathStyle: true,
           endpoint: process.env.JP_S3_ENDPOINT ?? 'https://example.com/s3',
@@ -121,7 +123,11 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
     const { commands } = app;
     const auth = await s3auth.factory();
     // create S3 drive
-    const S3Drive = new Drive({ name: auth.bucket, config: auth.config });
+    const S3Drive = new Drive({
+      name: auth.bucket,
+      root: auth.root,
+      config: auth.config
+    });
 
     app.serviceManager.contents.addDrive(S3Drive);
 
