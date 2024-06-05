@@ -336,7 +336,7 @@ export class Drive implements Contents.IDrive {
 
         const command = new ListObjectsV2Command({
           Bucket: this._name,
-          Prefix: path + '/'
+          Prefix: (this._root ? this._root + '/' : '') + path + '/'
         });
 
         let isTruncated: boolean | undefined = true;
@@ -348,8 +348,16 @@ export class Drive implements Contents.IDrive {
           if (Contents) {
             Contents.forEach(c => {
               // checking if we are dealing with the file inside a folder
-              if (c.Key !== path + '/') {
-                const fileName = c.Key!.replace(path + '/', '').split('/')[0];
+              if (
+                c.Key !== path + '/' &&
+                c.Key !== this._root + '/' + path + '/'
+              ) {
+                const fileName = c
+                  .Key!.replace(
+                    (this.root ? this.root + '/' : '') + path + '/',
+                    ''
+                  )
+                  .split('/')[0];
                 const [fileType, fileMimeType, fileFormat] = this.getFileType(
                   fileName.split('.')[1]
                 );
@@ -450,7 +458,8 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     const body = '';
-    let { path, type, ext } = options;
+    let { path } = options;
+    const { type, ext } = options;
     path = this._root ? (path ? this._root + '/' + path : this._root) : path;
 
     // get current list of contents of drive
@@ -766,7 +775,9 @@ export class Drive implements Contents.IDrive {
             newLocalPath,
             this._name
           );
-          return this.delete_file(oldLocalPath + remainingFilePath);
+          return this.delete_file(
+            oldLocalPath.replace(this._root + '/', '') + remainingFilePath
+          );
         });
         await Promise.all(promises);
       }
@@ -775,7 +786,7 @@ export class Drive implements Contents.IDrive {
       }
       command.input.ContinuationToken = NextContinuationToken;
     }
-    
+
     this._fileChanged.emit({
       type: 'rename',
       oldValue: { path: oldLocalPath },
