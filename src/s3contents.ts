@@ -775,9 +775,7 @@ export class Drive implements Contents.IDrive {
             newLocalPath,
             this._name
           );
-          return this.delete_file(
-            oldLocalPath.replace(this._root + '/', '') + remainingFilePath
-          );
+          return this.delete_file(oldLocalPath + remainingFilePath);
         });
         await Promise.all(promises);
       }
@@ -1281,7 +1279,7 @@ export class Drive implements Contents.IDrive {
 
   /**
    * Helping function for deleting files inside
-   * a directory, in the case of deleting the directory.
+   * a directory, in the case of deleting or renaming a directory.
    *
    * @param filePath complete path of file to delete
    */
