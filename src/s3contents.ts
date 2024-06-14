@@ -4,18 +4,23 @@ import { URLExt } from '@jupyterlab/coreutils';
 import { JupyterFrontEnd } from '@jupyterlab/application';
 
 import {
-  CopyObjectCommand,
-  DeleteObjectCommand,
   S3Client,
-  ListObjectsV2Command,
   GetBucketLocationCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-  HeadObjectCommand,
   S3ClientConfig
 } from '@aws-sdk/client-s3';
 
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import {
+  checkS3Object,
+  createS3Object,
+  copyS3Objects,
+  countS3ObjectNameAppearances,
+  deleteS3Objects,
+  presignedS3Url,
+  renameS3Objects,
+  listS3Contents,
+  IRegisteredFileTypes,
+  getS3FileContents
+} from './s3';
 
 let data: Contents.IModel = {
   name: '',
@@ -29,18 +34,6 @@ let data: Contents.IModel = {
   writable: true,
   type: ''
 };
-
-export interface IRegisteredFileTypes {
-  [fileExtension: string]: {
-    fileType: string;
-    fileMimeTypes: string[];
-    fileFormat: string;
-  };
-}
-
-interface IContentsList {
-  [fileName: string]: Contents.IModel;
-}
 
 export class Drive implements Contents.IDrive {
   /**
@@ -218,18 +211,8 @@ export class Drive implements Contents.IDrive {
    * path if necessary.
    */
   async getDownloadUrl(path: string): Promise<string> {
-    const getCommand = new GetObjectCommand({
-      Bucket: this._name,
-      Key: path,
-      ResponseContentDisposition: 'attachment',
-      ResponseContentType: 'application/octet-stream'
-    });
-
-    await this._s3Client.send(getCommand);
-
-    // get pre-signed URL of S3 file
-    const signedUrl = await getSignedUrl(this._s3Client, getCommand);
-    return signedUrl;
+    const url = await presignedS3Url(this._s3Client, this._name, path);
+    return url;
   }
 
   /**
@@ -251,162 +234,34 @@ export class Drive implements Contents.IDrive {
 
     // check if we are getting the list of files from the drive
     if (!path) {
-      const fileList: IContentsList = {};
-
-      const command = new ListObjectsV2Command({
-        Bucket: this._name
-      });
-
-      let isTruncated: boolean | undefined = true;
-
-      while (isTruncated) {
-        const { Contents, IsTruncated, NextContinuationToken } =
-          await this._s3Client.send(command);
-
-        if (Contents) {
-          Contents.forEach(c => {
-            const fileName = c.Key!.split('/')[0];
-            const [fileType, fileMimeType, fileFormat] = this.getFileType(
-              fileName.split('.')[1]
-            );
-
-            fileList[fileName] = fileList[fileName] ?? {
-              name: fileName,
-              path: fileName,
-              last_modified: c.LastModified!.toISOString(),
-              created: '',
-              content: !fileName.split('.')[1] ? [] : null,
-              format: fileFormat as Contents.FileFormat,
-              mimetype: fileMimeType,
-              size: c.Size!,
-              writable: true,
-              type: fileType
-            };
-          });
-        }
-        if (isTruncated) {
-          isTruncated = IsTruncated;
-        }
-        command.input.ContinuationToken = NextContinuationToken;
-      }
-
-      data = {
-        name: this._name,
-        path: this._name,
-        last_modified: '',
-        created: '',
-        content: Object.values(fileList),
-        format: 'json',
-        mimetype: '',
-        size: undefined,
-        writable: true,
-        type: 'directory'
-      };
+      // TO DO: replace '' with root variable
+      data = await listS3Contents(
+        this._s3Client,
+        this._name,
+        '',
+        this._registeredFileTypes
+      );
     } else {
       const splitPath = path.split('/');
       const currentPath = splitPath[splitPath.length - 1];
 
       // listing contents of a folder
       if (currentPath.indexOf('.') === -1) {
-        const fileList: IContentsList = {};
-
-        const command = new ListObjectsV2Command({
-          Bucket: this._name,
-          Prefix: path + '/'
-        });
-
-        let isTruncated: boolean | undefined = true;
-
-        while (isTruncated) {
-          const { Contents, IsTruncated, NextContinuationToken } =
-            await this._s3Client.send(command);
-
-          if (Contents) {
-            Contents.forEach(c => {
-              // checking if we are dealing with the file inside a folder
-              if (c.Key !== path + '/') {
-                const fileName = c.Key!.replace(path + '/', '').split('/')[0];
-                const [fileType, fileMimeType, fileFormat] = this.getFileType(
-                  fileName.split('.')[1]
-                );
-
-                fileList[fileName] = fileList[fileName] ?? {
-                  name: fileName,
-                  path: path + '/' + fileName,
-                  last_modified: c.LastModified!.toISOString(),
-                  created: '',
-                  content: !fileName.split('.')[1] ? [] : null,
-                  format: fileFormat as Contents.FileFormat,
-                  mimetype: fileMimeType,
-                  size: c.Size!,
-                  writable: true,
-                  type: fileType
-                };
-              }
-            });
-          }
-          if (isTruncated) {
-            isTruncated = IsTruncated;
-          }
-          command.input.ContinuationToken = NextContinuationToken;
-        }
-
-        data = {
-          name: currentPath,
-          path: path + '/',
-          last_modified: '',
-          created: '',
-          content: Object.values(fileList),
-          format: 'json',
-          mimetype: '',
-          size: undefined,
-          writable: true,
-          type: 'directory'
-        };
+        data = await listS3Contents(
+          this._s3Client,
+          this._name,
+          path + '/',
+          this.registeredFileTypes
+        );
       }
       // getting the contents of a specific file
       else {
-        const command = new GetObjectCommand({
-          Bucket: this._name,
-          Key: path.replace(this._name + '/', '')
-        });
-
-        const response = await this._s3Client.send(command);
-
-        if (response) {
-          const date: string = response.LastModified!.toISOString();
-          const [fileType, fileMimeType, fileFormat] = this.getFileType(
-            currentPath.split('.')[1]
-          );
-
-          let fileContents: string | Uint8Array;
-
-          // for certain media type files, extract content as byte array and decode to base64 to view in JupyterLab
-          if (fileFormat === 'base64' || fileType === 'PDF') {
-            fileContents = await response.Body!.transformToByteArray();
-            fileContents = btoa(
-              fileContents.reduce(
-                (data, byte) => data + String.fromCharCode(byte),
-                ''
-              )
-            );
-          } else {
-            fileContents = await response.Body!.transformToString();
-          }
-
-          data = {
-            name: currentPath,
-            path: path,
-            last_modified: date,
-            created: '',
-            content: fileContents,
-            format: fileFormat as Contents.FileFormat,
-            mimetype: fileMimeType,
-            size: response.ContentLength!,
-            writable: true,
-            type: fileType
-          };
-        }
+        data = await getS3FileContents(
+          this._s3Client,
+          this._name,
+          path,
+          this.registeredFileTypes
+        );
       }
     }
 
@@ -428,108 +283,25 @@ export class Drive implements Contents.IDrive {
     const body = '';
 
     // get current list of contents of drive
-    const content: Contents.IModel[] = [];
-
-    const command = new ListObjectsV2Command({
-      Bucket: this._name
-    });
-
-    let isTruncated: boolean | undefined = true;
-
-    while (isTruncated) {
-      const { Contents, IsTruncated, NextContinuationToken } =
-        await this._s3Client.send(command);
-
-      if (Contents) {
-        Contents.forEach(c => {
-          const [fileType, fileMimeType, fileFormat] = this.getFileType(
-            c.Key!.split('.')[1]
-          );
-
-          content.push({
-            name: c.Key!,
-            path: URLExt.join(this._name, c.Key!),
-            last_modified: c.LastModified!.toISOString(),
-            created: '',
-            content: !c.Key!.split('.')[1] ? [] : null,
-            format: fileFormat as Contents.FileFormat,
-            mimetype: fileMimeType,
-            size: c.Size!,
-            writable: true,
-            type: fileType
-          });
-        });
-      }
-      if (isTruncated) {
-        isTruncated = IsTruncated;
-      }
-      command.input.ContinuationToken = NextContinuationToken;
-    }
-
-    const old_data: Contents.IModel = {
-      name: this._name,
-      path: '',
-      last_modified: '',
-      created: '',
-      content: content,
-      format: 'json',
-      mimetype: '',
-      size: undefined,
-      writable: true,
-      type: 'directory'
-    };
+    const old_data = await listS3Contents(
+      this._s3Client,
+      this._name,
+      '',
+      this.registeredFileTypes
+    );
 
     if (options.type !== undefined) {
-      if (options.type !== 'directory') {
-        const name = this.incrementUntitledName(old_data, options);
-        await this.s3Client.send(
-          new PutObjectCommand({
-            Bucket: this._name,
-            Key: options.path ? options.path + '/' + name : name,
-            Body: body
-          })
-        );
-
-        const [fileType, fileMimeType, fileFormat] = this.getFileType(
-          options.ext!
-        );
-
-        data = {
-          name: name,
-          path: options.path + '/' + name,
-          last_modified: new Date().toISOString(),
-          created: new Date().toISOString(),
-          content: body,
-          format: fileFormat as Contents.FileFormat,
-          mimetype: fileMimeType,
-          size: body.length,
-          writable: true,
-          type: fileType
-        };
-      } else {
-        // creating a new directory
-        const name = this.incrementUntitledName(old_data, options);
-        await this.s3Client.send(
-          new PutObjectCommand({
-            Bucket: this._name,
-            Key: options.path ? options.path + '/' + name + '/' : name + '/',
-            Body: body
-          })
-        );
-
-        data = {
-          name: name,
-          path: options.path + '/' + name,
-          last_modified: new Date().toISOString(),
-          created: new Date().toISOString(),
-          content: [],
-          format: 'json',
-          mimetype: 'text/directory',
-          size: undefined,
-          writable: true,
-          type: options.type
-        };
-      }
+      // get incremented untitled name
+      const name = this.incrementUntitledName(old_data, options);
+      data = await createS3Object(
+        this._s3Client,
+        this._name,
+        name,
+        options.path as string,
+        body,
+        options,
+        this.registeredFileTypes
+      );
     } else {
       console.warn('Type of new element is undefined');
     }
@@ -603,31 +375,7 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves when the file is deleted.
    */
   async delete(localPath: string): Promise<void> {
-    // get list of contents with given prefix (path)
-    const command = new ListObjectsV2Command({
-      Bucket: this._name,
-      Prefix: localPath.split('.').length === 1 ? localPath + '/' : localPath
-    });
-
-    let isTruncated: boolean | undefined = true;
-
-    while (isTruncated) {
-      const { Contents, IsTruncated, NextContinuationToken } =
-        await this._s3Client.send(command);
-
-      if (Contents) {
-        await Promise.all(
-          Contents.map(c => {
-            // delete each file with given path
-            this.delete_file(c.Key!);
-          })
-        );
-      }
-      if (isTruncated) {
-        isTruncated = IsTruncated;
-      }
-      command.input.ContinuationToken = NextContinuationToken;
-    }
+    await deleteS3Objects(this._s3Client, this._name, localPath);
 
     this._fileChanged.emit({
       type: 'delete',
@@ -659,20 +407,11 @@ export class Drive implements Contents.IDrive {
         ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
         : newLocalPath;
 
-    const [fileType, fileMimeType, fileFormat] = this.getFileType(
-      newFileName!.split('.')[1]
-    );
-
     const isDir: boolean = oldLocalPath.split('.').length === 1;
 
     // check if file with new name already exists
     try {
-      await this._s3Client.send(
-        new HeadObjectCommand({
-          Bucket: this._name,
-          Key: newLocalPath
-        })
-      );
+      checkS3Object(this._s3Client, this._name, newLocalPath);
       console.log('File name already exists!');
       // construct new incremented name and it's corresponding path
       newFileName = await this.incrementName(newLocalPath, isDir, this._name);
@@ -690,60 +429,14 @@ export class Drive implements Contents.IDrive {
       console.log("Name doesn't exist!");
     }
 
-    // list contents of path - contents of directory or one file
-    const command = new ListObjectsV2Command({
-      Bucket: this._name,
-      Prefix: oldLocalPath
-    });
-
-    let isTruncated: boolean | undefined = true;
-
-    while (isTruncated) {
-      const { Contents, IsTruncated, NextContinuationToken } =
-        await this._s3Client.send(command);
-
-      if (Contents) {
-        // retrieve information of file or directory
-        const fileContents = await this._s3Client.send(
-          new GetObjectCommand({
-            Bucket: this._name,
-            Key: Contents[0].Key!
-          })
-        );
-
-        const body = await fileContents.Body?.transformToString();
-
-        data = {
-          name: newFileName,
-          path: newLocalPath,
-          last_modified: fileContents.LastModified!.toISOString(),
-          created: '',
-          content: body ? body : [],
-          format: fileFormat as Contents.FileFormat,
-          mimetype: fileMimeType,
-          size: fileContents.ContentLength!,
-          writable: true,
-          type: fileType
-        };
-
-        const promises = Contents.map(async c => {
-          const remainingFilePath = c.Key!.substring(oldLocalPath.length);
-          // wait for copy action to resolve, delete original file only if it succeeds
-          await this.copy_file(
-            remainingFilePath,
-            oldLocalPath,
-            newLocalPath,
-            this._name
-          );
-          return this.delete_file(oldLocalPath + remainingFilePath);
-        });
-        await Promise.all(promises);
-      }
-      if (isTruncated) {
-        isTruncated = IsTruncated;
-      }
-      command.input.ContinuationToken = NextContinuationToken;
-    }
+    renameS3Objects(
+      this._s3Client,
+      this._name,
+      oldLocalPath,
+      newLocalPath,
+      newFileName,
+      this._registeredFileTypes
+    );
 
     this._fileChanged.emit({
       type: 'rename',
@@ -764,7 +457,6 @@ export class Drive implements Contents.IDrive {
    * @param bucketName - The name of the bucket where content is moved.
    */
   async incrementName(localPath: string, isDir: boolean, bucketName: string) {
-    let counter: number = 0;
     let fileExtension: string = '';
     let originalName: string = '';
 
@@ -784,43 +476,12 @@ export class Drive implements Contents.IDrive {
         originalName.split('.')[originalName.split('.').length - 2];
     }
 
-    // count number of name appearances
-    const command = new ListObjectsV2Command({
-      Bucket: bucketName,
-      Prefix: localPath.substring(0, localPath.lastIndexOf('/'))
-    });
-
-    let isTruncated: boolean | undefined = true;
-
-    while (isTruncated) {
-      const { Contents, IsTruncated, NextContinuationToken } =
-        await this._s3Client.send(command);
-
-      if (Contents) {
-        Contents.forEach(c => {
-          // check if we are dealing with a directory
-          if (c.Key![c.Key!.length - 1] === '/') {
-            c.Key! = c.Key!.substring(0, c.Key!.length - 1);
-          }
-          // check if the name of the file or directory matches the original name
-          if (
-            c
-              .Key!.substring(
-                c.Key!.lastIndexOf('/') + 1,
-                c.Key!.lastIndexOf('/') + 1 + originalName.length
-              )
-              .includes(originalName)
-          ) {
-            counter += 1;
-          }
-        });
-      }
-      if (isTruncated) {
-        isTruncated = IsTruncated;
-      }
-      command.input.ContinuationToken = NextContinuationToken;
-    }
-
+    const counter = await countS3ObjectNameAppearances(
+      this._s3Client,
+      this._name,
+      localPath,
+      originalName
+    );
     let newName = counter ? originalName + counter : originalName;
     newName = isDir ? newName + '/' : newName + '.' + fileExtension;
 
@@ -851,58 +512,15 @@ export class Drive implements Contents.IDrive {
         ? localPath
         : localPath.split('/')[localPath.split.length - 1];
 
-    const [fileType, fileMimeType, fileFormat] = this.getFileType(
-      fileName.split('.')[1]
+    data = await createS3Object(
+      this._s3Client,
+      this._name,
+      fileName,
+      localPath,
+      options.content,
+      options,
+      this._registeredFileTypes
     );
-
-    let body: string | Blob;
-    if (options.format === 'json') {
-      body = JSON.stringify(options?.content, null, 2);
-    } else if (
-      options.format === 'base64' &&
-      (fileFormat === 'base64' || fileType === 'PDF')
-    ) {
-      // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket
-      const byteCharacters = atob(options.content);
-      const byteArrays = [];
-
-      for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-        const slice = byteCharacters.slice(offset, offset + 512);
-        const byteNumbers = new Array(slice.length);
-        for (let i = 0; i < slice.length; i++) {
-          byteNumbers[i] = slice.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        byteArrays.push(byteArray);
-      }
-
-      body = new Blob(byteArrays, { type: fileMimeType });
-    } else {
-      body = options?.content;
-    }
-
-    // save file with new content by overwritting existing file
-    await this._s3Client.send(
-      new PutObjectCommand({
-        Bucket: this._name,
-        Key: localPath,
-        Body: body,
-        CacheControl: 'no-cache'
-      })
-    );
-
-    data = {
-      name: fileName,
-      path: localPath,
-      last_modified: new Date().toISOString(),
-      created: '',
-      content: body,
-      format: fileFormat as Contents.FileFormat,
-      mimetype: fileMimeType,
-      size: typeof body === 'string' ? body.length : body.size,
-      writable: true,
-      type: fileType
-    };
 
     this._fileChanged.emit({
       type: 'save',
@@ -980,61 +598,14 @@ export class Drive implements Contents.IDrive {
     newFileName = toDir !== '' ? toDir + '/' + newFileName : newFileName;
     path = isDir ? path + '/' : path;
 
-    // list contents of path - contents of directory or one file
-    const command = new ListObjectsV2Command({
-      Bucket: this._name,
-      Prefix: path
-    });
-
-    let isTruncated: boolean | undefined = true;
-
-    while (isTruncated) {
-      const { Contents, IsTruncated, NextContinuationToken } =
-        await this._s3Client.send(command);
-
-      if (Contents) {
-        const promises = Contents.map(c => {
-          const remainingFilePath = c.Key!.substring(path.length);
-          // copy each file from old directory to new location
-          return this.copy_file(
-            remainingFilePath,
-            path,
-            newFileName,
-            this._name
-          );
-        });
-        await Promise.all(promises);
-      }
-      if (isTruncated) {
-        isTruncated = IsTruncated;
-      }
-      command.input.ContinuationToken = NextContinuationToken;
-    }
-
-    const [fileType, fileMimeType, fileFormat] = this.getFileType(
-      newFileName.split('.')[1]
+    data = await copyS3Objects(
+      this._s3Client,
+      this._name,
+      newFileName,
+      path,
+      toDir,
+      this._registeredFileTypes
     );
-
-    // retrieve information of new file
-    const newFileContents = await this._s3Client.send(
-      new GetObjectCommand({
-        Bucket: this._name,
-        Key: newFileName
-      })
-    );
-
-    data = {
-      name: newFileName,
-      path: toDir + '/' + newFileName,
-      last_modified: newFileContents.LastModified!.toISOString(),
-      created: new Date().toISOString(),
-      content: await newFileContents.Body!.transformToString(),
-      format: fileFormat as Contents.FileFormat,
-      mimetype: fileMimeType,
-      size: newFileContents.ContentLength!,
-      writable: true,
-      type: fileType
-    };
 
     this._fileChanged.emit({
       type: 'new',
@@ -1066,73 +637,22 @@ export class Drive implements Contents.IDrive {
     path =
       path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
 
-    // list contents of path - contents of directory or one file
-    const command = new ListObjectsV2Command({
-      Bucket: this._name,
-      Prefix: path
-    });
+    const isDir: boolean = path.split('.').length === 1;
 
-    let isTruncated: boolean | undefined = true;
+    // construct new file or directory name for the copy
+    let newFileName = await this.incrementCopyName(path, isDir, bucketName);
+    newFileName = toDir !== '' ? toDir + '/' + newFileName : newFileName;
+    path = isDir ? path + '/' : path;
 
-    while (isTruncated) {
-      const { Contents, IsTruncated, NextContinuationToken } =
-        await this._s3Client.send(command);
-
-      if (Contents) {
-        const isDir: boolean =
-          Contents.length > 1 ||
-          Contents![0].Key![Contents![0].Key!.length - 1] === '/'
-            ? true
-            : false;
-        const newFileName = await this.incrementCopyName(
-          path,
-          isDir,
-          bucketName
-        );
-        path = isDir ? path + '/' : path;
-
-        const promises = Contents.map(c => {
-          const remainingFilePath = c.Key!.substring(path.length);
-          // copy each file from old directory to new location
-          return this.copy_file(
-            remainingFilePath,
-            path,
-            newFileName,
-            bucketName
-          );
-        });
-        await Promise.all(promises);
-
-        const [fileType, fileMimeType, fileFormat] = this.getFileType(
-          newFileName.split('.')[1]
-        );
-
-        // retrieve information of new file
-        const newFileContents = await this._s3Client.send(
-          new GetObjectCommand({
-            Bucket: bucketName,
-            Key: toDir !== '' ? toDir + '/' + newFileName : newFileName
-          })
-        );
-
-        data = {
-          name: newFileName,
-          path: toDir + '/' + newFileName,
-          last_modified: newFileContents.LastModified!.toISOString(),
-          created: new Date().toISOString(),
-          content: await newFileContents.Body!.transformToString(),
-          format: fileFormat as Contents.FileFormat,
-          mimetype: fileMimeType,
-          size: newFileContents.ContentLength!,
-          writable: true,
-          type: fileType
-        };
-      }
-      if (isTruncated) {
-        isTruncated = IsTruncated;
-      }
-      command.input.ContinuationToken = NextContinuationToken;
-    }
+    data = await copyS3Objects(
+      this._s3Client,
+      this._name,
+      newFileName,
+      path,
+      toDir,
+      this._registeredFileTypes,
+      bucketName
+    );
 
     this._fileChanged.emit({
       type: 'new',
@@ -1209,43 +729,6 @@ export class Drive implements Contents.IDrive {
     );
     return (response?.LocationConstraint as string) ?? '';
   }
-  /**
-   * Helping function for copying the files inside a directory
-   * to a new location, in the case of renaming or copying a directory.
-   *
-   * @param remainingFilePath remaining path of file to be copied
-   * @param oldPath old path of file
-   * @param newPath new path of file
-   */
-  private async copy_file(
-    remainingFilePath: string,
-    oldPath: string,
-    newPath: string,
-    bucketName: string
-  ) {
-    await this._s3Client.send(
-      new CopyObjectCommand({
-        Bucket: bucketName,
-        CopySource: this._name + '/' + oldPath + remainingFilePath,
-        Key: newPath + remainingFilePath
-      })
-    );
-  }
-
-  /**
-   * Helping function for deleting files inside
-   * a directory, in the case of deleting the directory.
-   *
-   * @param filePath complete path of file to delete
-   */
-  private async delete_file(filePath: string) {
-    await this.s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: this._name,
-        Key: filePath
-      })
-    );
-  }
 
   /**
    * Get all registered file types and store them accordingly with their file
@@ -1280,31 +763,6 @@ export class Drive implements Contents.IDrive {
         }
       });
     }
-  }
-
-  /**
-   * Helping function to define file type, mimetype and format based on file extension.
-   * @param extension file extension (e.g.: txt, ipynb, csv)
-   * @returns
-   */
-  private getFileType(extension: string) {
-    let fileType: string = 'text';
-    let fileMimetype: string = 'text/plain';
-    let fileFormat: string = 'text';
-    extension = extension ?? '';
-
-    if (this._registeredFileTypes[extension]) {
-      fileType = this._registeredFileTypes[extension].fileType;
-      fileMimetype = this._registeredFileTypes[extension].fileMimeTypes[0];
-      fileFormat = this._registeredFileTypes[extension].fileFormat;
-    }
-
-    // the file format for notebooks appears as json, but should be text
-    if (extension === 'ipynb') {
-      fileFormat = 'text';
-    }
-
-    return [fileType, fileMimetype, fileFormat];
   }
 
   private _serverSettings: ServerConnection.ISettings;
