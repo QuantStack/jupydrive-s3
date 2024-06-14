@@ -62,6 +62,7 @@ const SWITCH_DRIVE_TITLE_CLASS = 'jp-new-drive-title';
 export interface IS3Auth {
   factory: () => Promise<{
     bucket: string;
+    root: string;
     config: S3ClientConfig;
   }>;
 }
@@ -84,6 +85,7 @@ const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
     return {
       factory: async () => ({
         bucket: process.env.JP_S3_BUCKET ?? 'jupyter-drives-test-bucket-1',
+        root: process.env.JP_S3_ROOT ?? '',
         config: {
           forcePathStyle: true,
           endpoint: process.env.JP_S3_ENDPOINT ?? 'https://example.com/s3',
@@ -121,7 +123,11 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
     const { commands } = app;
     const auth = await s3auth.factory();
     // create S3 drive
-    const S3Drive = new Drive({ name: auth.bucket, config: auth.config });
+    const S3Drive = new Drive({
+      name: auth.bucket,
+      root: auth.root,
+      config: auth.config
+    });
 
     app.serviceManager.contents.addDrive(S3Drive);
 
@@ -233,20 +239,25 @@ namespace Private {
    */
   const createSwitchDriveNode = (oldDriveName: string): HTMLElement => {
     const body = document.createElement('div');
+
     const existingLabel = document.createElement('label');
-    existingLabel.textContent = 'Current Drive';
-    const existingName = document.createElement('span');
-    existingName.textContent = oldDriveName;
+    existingLabel.textContent = 'Current Drive: ' + oldDriveName;
 
     const nameTitle = document.createElement('label');
     nameTitle.textContent = 'Switch to another Drive';
     nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
     const name = document.createElement('input');
 
+    const root = document.createElement('label');
+    root.textContent = 'with root';
+    root.className = SWITCH_DRIVE_TITLE_CLASS;
+    const rootPath = document.createElement('input');
+
     body.appendChild(existingLabel);
-    body.appendChild(existingName);
     body.appendChild(nameTitle);
     body.appendChild(name);
+    body.appendChild(root);
+    body.appendChild(rootPath);
     return body;
   };
 
@@ -285,33 +296,31 @@ namespace Private {
       this.onAfterAttach();
     }
 
-    protected onAfterAttach(): void {
-      this.addClass(FILE_DIALOG_CLASS);
-      const name = this.inputNameNode.value;
-      this.inputNameNode.setSelectionRange(0, name.length);
-      const location = this.inputLocationNode.value;
-      this.inputLocationNode.setSelectionRange(0, location.length);
-    }
-
     /**
-     * Get the input text node for the bucket name.
+     * The text input node for bucket name.
      */
-    get inputNameNode(): HTMLInputElement {
+    protected get bucketInput(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
     }
-
     /**
-     * Get the input text node for the location within the bucket.
+     * The text input node root directory.
      */
-    get inputLocationNode(): HTMLInputElement {
+    protected get rootInput(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[1] as HTMLInputElement;
+    }
+
+    protected onAfterAttach(): void {
+      this.addClass(FILE_DIALOG_CLASS);
+      const [bucket, root] = this.getValue();
+      this.bucketInput.setSelectionRange(0, bucket.length);
+      this.rootInput.setSelectionRange(0, root.length);
     }
 
     /**
      * Get the value of the widget.
      */
-    getValue(): string[] {
-      return [this.inputNameNode.value, this.inputLocationNode.value];
+    getValue(): [bucket: string, root: string] {
+      return [this.bucketInput.value, this.rootInput.value];
     }
   }
 
@@ -329,22 +338,31 @@ namespace Private {
 
     protected onAfterAttach(): void {
       this.addClass(FILE_DIALOG_CLASS);
-      const value = this.inputNode.value;
-      this.inputNode.setSelectionRange(0, value.length);
+      const name = this.inputNameNode.value;
+      this.inputNameNode.setSelectionRange(0, name.length);
+      const root = this.inputRootNode.value;
+      this.inputRootNode.setSelectionRange(0, root.length);
     }
 
     /**
-     * Get the input text node.
+     * Get the input text node for bucket name.
      */
-    get inputNode(): HTMLInputElement {
+    get inputNameNode(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
+    }
+
+    /**
+     * Get the input text node for path to root.
+     */
+    get inputRootNode(): HTMLInputElement {
+      return this.node.getElementsByTagName('input')[1] as HTMLInputElement;
     }
 
     /**
      * Get the value of the widget.
      */
-    getValue(): string {
-      return this.inputNode.value;
+    getValue(): string[] {
+      return [this.inputNameNode.value, this.inputRootNode.value];
     }
   }
 
@@ -367,7 +385,8 @@ namespace Private {
           ]
         }).then(result => {
           if (result.value) {
-            drive.name = result.value;
+            drive.name = result.value[0];
+            drive.root = result.value[1];
             app.serviceManager.contents.addDrive(drive);
           }
         });

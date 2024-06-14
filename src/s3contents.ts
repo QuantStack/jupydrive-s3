@@ -49,7 +49,7 @@ export class Drive implements Contents.IDrive {
    * @param options - The options used to initialize the object.
    */
   constructor(options: Drive.IOptions) {
-    const { config, name } = options;
+    const { config, name, root } = options;
     this._serverSettings = ServerConnection.makeSettings();
     this._s3Client = new S3Client(config ?? {});
     this._name = name;
@@ -67,7 +67,9 @@ export class Drive implements Contents.IDrive {
         this._region = region!;
       });
     }
-
+    this.formatRoot(root).then((root: string) => {
+      this._root = root;
+    });
     this._registeredFileTypes = {};
   }
 
@@ -107,9 +109,24 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
-   * The Drive name setter */
+   * The Drive name setter
+   */
   set name(name: string) {
     this._name = name;
+  }
+
+  /**
+   * The Drive root getter
+   */
+  get root(): string {
+    return this._root;
+  }
+
+  /**
+   * The Drive root setter
+   */
+  set root(root: string) {
+    this.formatRoot(root).then(root => (this._root = root));
   }
 
   /**
@@ -254,7 +271,8 @@ export class Drive implements Contents.IDrive {
       const fileList: IContentsList = {};
 
       const command = new ListObjectsV2Command({
-        Bucket: this._name
+        Bucket: this._name,
+        Prefix: this._root
       });
 
       let isTruncated: boolean | undefined = true;
@@ -265,23 +283,29 @@ export class Drive implements Contents.IDrive {
 
         if (Contents) {
           Contents.forEach(c => {
-            const fileName = c.Key!.split('/')[0];
-            const [fileType, fileMimeType, fileFormat] = this.getFileType(
-              fileName.split('.')[1]
-            );
+            if (c.Key! !== this._root + '/') {
+              const fileName = (
+                this._root === ''
+                  ? c.Key!
+                  : c.Key!.replace(this._root + '/', '')
+              ).split('/')[0];
+              const [fileType, fileMimeType, fileFormat] = this.getFileType(
+                fileName.split('.')[1]
+              );
 
-            fileList[fileName] = fileList[fileName] ?? {
-              name: fileName,
-              path: fileName,
-              last_modified: c.LastModified!.toISOString(),
-              created: '',
-              content: !fileName.split('.')[1] ? [] : null,
-              format: fileFormat as Contents.FileFormat,
-              mimetype: fileMimeType,
-              size: c.Size!,
-              writable: true,
-              type: fileType
-            };
+              fileList[fileName] = fileList[fileName] ?? {
+                name: fileName,
+                path: fileName,
+                last_modified: c.LastModified!.toISOString(),
+                created: '',
+                content: !fileName.split('.')[1] ? [] : null,
+                format: fileFormat as Contents.FileFormat,
+                mimetype: fileMimeType,
+                size: c.Size!,
+                writable: true,
+                type: fileType
+              };
+            }
           });
         }
         if (isTruncated) {
@@ -312,7 +336,7 @@ export class Drive implements Contents.IDrive {
 
         const command = new ListObjectsV2Command({
           Bucket: this._name,
-          Prefix: path + '/'
+          Prefix: (this._root ? this._root + '/' : '') + path + '/'
         });
 
         let isTruncated: boolean | undefined = true;
@@ -324,8 +348,16 @@ export class Drive implements Contents.IDrive {
           if (Contents) {
             Contents.forEach(c => {
               // checking if we are dealing with the file inside a folder
-              if (c.Key !== path + '/') {
-                const fileName = c.Key!.replace(path + '/', '').split('/')[0];
+              if (
+                c.Key !== path + '/' &&
+                c.Key !== this._root + '/' + path + '/'
+              ) {
+                const fileName = c
+                  .Key!.replace(
+                    (this.root ? this.root + '/' : '') + path + '/',
+                    ''
+                  )
+                  .split('/')[0];
                 const [fileType, fileMimeType, fileFormat] = this.getFileType(
                   fileName.split('.')[1]
                 );
@@ -368,7 +400,7 @@ export class Drive implements Contents.IDrive {
       else {
         const command = new GetObjectCommand({
           Bucket: this._name,
-          Key: path.replace(this._name + '/', '')
+          Key: this._root ? this._root + '/' + path : path
         });
 
         const response = await this._s3Client.send(command);
@@ -396,7 +428,7 @@ export class Drive implements Contents.IDrive {
 
           data = {
             name: currentPath,
-            path: path,
+            path: this._root ? this._root + '/' + path : path,
             last_modified: date,
             created: '',
             content: fileContents,
@@ -426,6 +458,9 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     const body = '';
+    let { path } = options;
+    const { type, ext } = options;
+    path = this._root ? (path ? this._root + '/' + path : this._root) : path;
 
     // get current list of contents of drive
     const content: Contents.IModel[] = [];
@@ -479,24 +514,22 @@ export class Drive implements Contents.IDrive {
       type: 'directory'
     };
 
-    if (options.type !== undefined) {
-      if (options.type !== 'directory') {
-        const name = this.incrementUntitledName(old_data, options);
+    if (type !== undefined) {
+      if (type !== 'directory') {
+        const name = this.incrementUntitledName(old_data, { path, type, ext });
         await this.s3Client.send(
           new PutObjectCommand({
             Bucket: this._name,
-            Key: options.path ? options.path + '/' + name : name,
+            Key: path ? path + '/' + name : name,
             Body: body
           })
         );
 
-        const [fileType, fileMimeType, fileFormat] = this.getFileType(
-          options.ext!
-        );
+        const [fileType, fileMimeType, fileFormat] = this.getFileType(ext!);
 
         data = {
           name: name,
-          path: options.path + '/' + name,
+          path: path + '/' + name,
           last_modified: new Date().toISOString(),
           created: new Date().toISOString(),
           content: body,
@@ -508,18 +541,18 @@ export class Drive implements Contents.IDrive {
         };
       } else {
         // creating a new directory
-        const name = this.incrementUntitledName(old_data, options);
+        const name = this.incrementUntitledName(old_data, { path, type, ext });
         await this.s3Client.send(
           new PutObjectCommand({
             Bucket: this._name,
-            Key: options.path ? options.path + '/' + name + '/' : name + '/',
+            Key: path ? path + '/' + name + '/' : name + '/',
             Body: body
           })
         );
 
         data = {
           name: name,
-          path: options.path + '/' + name,
+          path: path + '/' + name,
           last_modified: new Date().toISOString(),
           created: new Date().toISOString(),
           content: [],
@@ -527,7 +560,7 @@ export class Drive implements Contents.IDrive {
           mimetype: 'text/directory',
           size: undefined,
           writable: true,
-          type: options.type
+          type: type
         };
       }
     } else {
@@ -603,6 +636,11 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves when the file is deleted.
    */
   async delete(localPath: string): Promise<void> {
+    localPath = this._root
+      ? localPath
+        ? this._root + '/' + localPath
+        : this._root
+      : localPath;
     // get list of contents with given prefix (path)
     const command = new ListObjectsV2Command({
       Bucket: this._name,
@@ -658,6 +696,8 @@ export class Drive implements Contents.IDrive {
       newLocalPath.indexOf('/') >= 0
         ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
         : newLocalPath;
+    newLocalPath = this._root ? this._root + '/' + newLocalPath : newLocalPath;
+    oldLocalPath = this._root ? this._root + '/' + oldLocalPath : oldLocalPath;
 
     const [fileType, fileMimeType, fileFormat] = this.getFileType(
       newFileName!.split('.')[1]
@@ -850,6 +890,7 @@ export class Drive implements Contents.IDrive {
       localPath.indexOf('/') === -1
         ? localPath
         : localPath.split('/')[localPath.split.length - 1];
+    localPath = this._root ? this._root + '/' + localPath : localPath;
 
     const [fileType, fileMimeType, fileFormat] = this.getFileType(
       fileName.split('.')[1]
@@ -973,6 +1014,9 @@ export class Drive implements Contents.IDrive {
     toDir: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
+    path = this._root ? this._root + '/' + path : path;
+    toDir = this._root ? this._root + (toDir ? '/' + toDir : toDir) : toDir;
+
     const isDir: boolean = path.split('.').length === 1;
 
     // construct new file or directory name for the copy
@@ -1065,6 +1109,7 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     path =
       path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
+    path = this._root ? this._root + (path ? '/' + path : path) : path;
 
     // list contents of path - contents of directory or one file
     const command = new ListObjectsV2Command({
@@ -1234,7 +1279,7 @@ export class Drive implements Contents.IDrive {
 
   /**
    * Helping function for deleting files inside
-   * a directory, in the case of deleting the directory.
+   * a directory, in the case of deleting or renaming a directory.
    *
    * @param filePath complete path of file to delete
    */
@@ -1307,9 +1352,42 @@ export class Drive implements Contents.IDrive {
     return [fileType, fileMimetype, fileFormat];
   }
 
+  /**
+   * Helping function which formats root by removing all leading or trailing
+   * backslashes and checking if given path to directory exists.
+   *
+   * @param root
+   * @returns formatted root
+   */
+  private async formatRoot(root: string) {
+    // if root is empty, no formatting needed
+    if (root === '') {
+      return root;
+    }
+
+    // reformat the path to arbitrary root so it has no leading or trailing /
+    root = root.replace(/^\/+|\/+$/g, '');
+
+    // check if directory exists within bucket
+    try {
+      await this._s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this._name,
+          Key: root + '/'
+        })
+      );
+      // the directory exists, root is formatted correctly
+      return root;
+    } catch (error) {
+      console.log("Given path to root directory doesn't exist within bucket.");
+      return '';
+    }
+  }
+
   private _serverSettings: ServerConnection.ISettings;
   private _s3Client: S3Client;
   private _name: string = '';
+  private _root: string = '';
   private _provider: string = '';
   private _baseUrl: string = '';
   private _region: string = '';
@@ -1335,6 +1413,11 @@ export namespace Drive {
      * paths to disambiguate it from other drives.
      */
     name: string;
+
+    /**
+     * Path to directory from drive, which acts as root.
+     */
+    root: string;
 
     /**
      * The server settings for the server.
