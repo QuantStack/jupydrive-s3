@@ -7,9 +7,9 @@ node_modules/
 *.egg-info/
 .ipynb_checkpoints
 *.tsbuildinfo
-jupydrive-s3/labextension
+jupydrive_s3/labextension
 # Version file is handled by hatchling
-jupydrive-s3/_version.py
+jupydrive_s3/_version.py
 
 # Integration tests
 ui-tests/test-results/

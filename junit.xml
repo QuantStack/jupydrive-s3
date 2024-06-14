@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="1" failures="0" errors="0" time="2.202">
+  <testsuite name="jupydrive-s3" errors="0" failures="0" skipped="0" timestamp="2024-06-14T10:10:57" time="1.71" tests="1">
+    <testcase classname="jupydrive-s3 should be tested" name="jupydrive-s3 should be tested" time="0.001">
+    </testcase>
+  </testsuite>
+</testsuites>

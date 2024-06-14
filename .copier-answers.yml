@@ -13,7 +13,7 @@ mimetype: ''
 mimetype_name: ''
 project_short_description: A JupyterLab extension which enables client-side drives
     access.
-python_name: jupydrive-s3
+python_name: jupydrive_s3
 repository: https://github.com/QuantStack/jupydrive-s3
 test: true
 viewer_name: ''

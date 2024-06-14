@@ -1,5 +1,5 @@
 {
   "packageManager": "python",
-  "packageName": "jupydrive-s3",
-  "uninstallInstructions": "Use your Python package manager (pip, conda, etc.) to uninstall the package jupydrive-s3"
+  "packageName": "jupydrive_s3",
+  "uninstallInstructions": "Use your Python package manager (pip, conda, etc.) to uninstall the package jupydrive_s3"
 }

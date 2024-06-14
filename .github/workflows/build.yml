@@ -37,7 +37,7 @@ jobs:
         python -m pip install .[test]
 
         jupyter labextension list
-        jupyter labextension list 2>&1 | grep -ie "jupydrive-s3.*OK"
+        jupyter labextension list 2>&1 | grep -ie "jupydrive_s3.*OK"
         python -m jupyterlab.browser_check
 
     - name: Package the extension
@@ -46,13 +46,13 @@ jobs:
 
         pip install build
         python -m build
-        pip uninstall -y "jupydrive-s3" jupyterlab
+        pip uninstall -y "jupydrive_s3" jupyterlab
 
     - name: Upload extension packages
       uses: actions/upload-artifact@v3
       with:
         name: extension-artifacts
-        path: dist/jupydrive-s3*
+        path: dist/jupydrive_s3*
         if-no-files-found: error
 
   test_isolated:
@@ -75,11 +75,11 @@ jobs:
         sudo rm -rf $(which node)
         sudo rm -rf $(which node)
 
-        pip install "jupyterlab>=4.0.0,<5" jupydrive-s3*.whl
+        pip install "jupyterlab>=4.0.0,<5" jupydrive_s3*.whl
 
 
         jupyter labextension list
-        jupyter labextension list 2>&1 | grep -ie "jupydrive-s3.*OK"
+        jupyter labextension list 2>&1 | grep -ie "jupydrive_s3.*OK"
         python -m jupyterlab.browser_check --no-browser-test
 
   integration-tests:
@@ -105,7 +105,7 @@ jobs:
     - name: Install the extension
       run: |
         set -eux
-        python -m pip install "jupyterlab>=4.0.0,<5" jupydrive-s3*.whl
+        python -m pip install "jupyterlab>=4.0.0,<5" jupydrive_s3*.whl
 
     - name: Install dependencies
       working-directory: ui-tests
@@ -134,7 +134,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v3
       with:
-        name: jupydrive-s3-playwright-tests
+        name: jupydrive_s3-playwright-tests
         path: |
           ui-tests/test-results
           ui-tests/playwright-report

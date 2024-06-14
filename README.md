@@ -33,7 +33,7 @@ More information about `CORS` [here](https://docs.aws.amazon.com/AmazonS3/latest
 To install the extension, execute:
 
 ```bash
-pip install jupydrive-s3
+pip install jupydrive_s3
 ```
 
 ## Uninstall
@@ -41,7 +41,7 @@ pip install jupydrive-s3
 To remove the extension, execute:
 
 ```bash
-pip uninstall jupydrive-s3
+pip uninstall jupydrive_s3
 ```
 
 ## Contributing
@@ -56,7 +56,7 @@ The `jlpm` command is JupyterLab's pinned version of
 
 ```bash
 # Clone the repo to your local environment
-# Change directory to the jupydrive-s3 directory
+# Change directory to the jupydrive_s3 directory
 # Install package in development mode
 pip install -e "."
 # Link your development version of the extension with JupyterLab
@@ -85,12 +85,12 @@ jupyter lab build --minimize=False
 ### Development uninstall
 
 ```bash
-pip uninstall jupydrive-s3
+pip uninstall jupydrive_s3
 ```
 
 In development mode, you will also need to remove the symlink created by `jupyter labextension develop`
 command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
-folder is located. Then you can remove the symlink named `jupydrive-s3` within that folder.
+folder is located. Then you can remove the symlink named `jupydrive_s3` within that folder.
 
 ### Testing the extension
 
