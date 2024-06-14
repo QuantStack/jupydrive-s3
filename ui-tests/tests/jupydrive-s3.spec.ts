@@ -16,8 +16,6 @@ test.skip('should emit an activation console message', async ({ page }) => {
   await page.goto();
 
   expect(
-    logs.filter(
-      s => s === 'JupyterLab extension jupydrive-s3 is activated!'
-    )
+    logs.filter(s => s === 'JupyterLab extension jupydrive-s3 is activated!')
   ).toHaveLength(1);
 });

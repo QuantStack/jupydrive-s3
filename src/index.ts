@@ -70,9 +70,7 @@ export interface IS3Auth {
 /**
  * A token for a plugin that provides S3 authentication.
  */
-export const IS3Auth = new Token<IS3Auth>(
-  'jupydrive-s3:auth-file-browser'
-);
+export const IS3Auth = new Token<IS3Auth>('jupydrive-s3:auth-file-browser');
 
 /**
  * The auth/credentials provider for the file browser.
