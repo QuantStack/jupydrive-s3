@@ -296,33 +296,31 @@ namespace Private {
       this.onAfterAttach();
     }
 
-    protected onAfterAttach(): void {
-      this.addClass(FILE_DIALOG_CLASS);
-      const name = this.inputNameNode.value;
-      this.inputNameNode.setSelectionRange(0, name.length);
-      const location = this.inputLocationNode.value;
-      this.inputLocationNode.setSelectionRange(0, location.length);
-    }
-
     /**
-     * Get the input text node for the bucket name.
+     * The text input node for bucket name.
      */
-    get inputNameNode(): HTMLInputElement {
+    protected get bucketInput(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
     }
-
     /**
-     * Get the input text node for the location within the bucket.
+     * The text input node root directory.
      */
-    get inputLocationNode(): HTMLInputElement {
+    protected get rootInput(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[1] as HTMLInputElement;
+    }
+
+    protected onAfterAttach(): void {
+      this.addClass(FILE_DIALOG_CLASS);
+      const [bucket, root] = this.getValue();
+      this.bucketInput.setSelectionRange(0, bucket.length);
+      this.rootInput.setSelectionRange(0, root.length);
     }
 
     /**
      * Get the value of the widget.
      */
-    getValue(): string[] {
-      return [this.inputNameNode.value, this.inputLocationNode.value];
+    getValue(): [bucket: string, root: string] {
+      return [this.bucketInput.value, this.rootInput.value];
     }
   }
 
