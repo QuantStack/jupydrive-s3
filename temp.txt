@@ -1,8 +1,0 @@
-JupyterLab v4.1.6
-/Users/af/miniforge3/envs/drives/share/jupyter/labextensions
-        jupyterlab_pygments v0.3.0 enabled OK (python, jupyterlab_pygments)
-        jupydrive-s3 v0.1.0-alpha enabled OK
-
-
-Disabled extensions:
-    @jupyterlab/filebrowser-extension:default-file-browser
