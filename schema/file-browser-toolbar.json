@@ -13,8 +13,8 @@
       }
     ]
   },
-  "title": "jupyter-drives-browser:file-browser-toolbar",
-  "description": "jupyter-drives-browser settings.",
+  "title": "jupydrive-s3:file-browser-toolbar",
+  "description": "jupydrive-s3 settings.",
   "type": "object",
   "jupyter.lab.transform": true,
   "properties": {

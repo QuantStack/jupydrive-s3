@@ -1,7 +1,7 @@
 {
-  "name": "jupyter-drives-browser-ui-tests",
+  "name": "jupydrive-s3-ui-tests",
   "version": "1.0.0",
-  "description": "JupyterLab jupyter-drives-browser Integration Tests",
+  "description": "JupyterLab jupydrive-s3 Integration Tests",
   "private": true,
   "scripts": {
     "start": "jupyter lab --config jupyter_server_test_config.py",

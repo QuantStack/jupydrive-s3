@@ -22,5 +22,5 @@ jobs:
       - name: Upload Distributions
         uses: actions/upload-artifact@v3
         with:
-          name: jupyter_drives_browser-releaser-dist-${{ github.run_number }}
+          name: jupydrive_s3-releaser-dist-${{ github.run_number }}
           path: .jupyter_releaser_checkout/dist

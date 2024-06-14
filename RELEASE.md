@@ -1,4 +1,4 @@
-# Making a new release of jupyter_drives_browser
+# Making a new release of jupydrive_s3
 
 The extension can be published to `PyPI` and `npm` manually or using the [Jupyter Releaser](https://github.com/jupyter-server/jupyter_releaser).
 
