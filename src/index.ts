@@ -39,7 +39,7 @@ namespace CommandIDs {
 }
 
 const FILE_BROWSER_FACTORY = 'DriveBrowser';
-const FILE_BROWSER_PLUGIN_ID = 'jupyter-drives-browser:file-browser-toolbar';
+const FILE_BROWSER_PLUGIN_ID = 'jupydrive-s3:file-browser-toolbar';
 
 /**
  * The class name added to the  drive filebrowser filterbox node.
@@ -71,14 +71,14 @@ export interface IS3Auth {
  * A token for a plugin that provides S3 authentication.
  */
 export const IS3Auth = new Token<IS3Auth>(
-  'jupyter-drives-browser:auth-file-browser'
+  'jupydrive-s3:auth-file-browser'
 );
 
 /**
  * The auth/credentials provider for the file browser.
  */
 const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
-  id: 'jupyter-drives-browser:auth-file-browser',
+  id: 'jupydrive-s3:auth-file-browser',
   description: 'The default file browser auth/credentials provider',
   provides: IS3Auth,
   activate: (): IS3Auth => {
@@ -107,7 +107,7 @@ const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
  * The default file browser factory provider.
  */
 const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
-  id: 'jupyter-drives-browser:default-file-browser',
+  id: 'jupydrive-s3:default-file-browser',
   description: 'The default file browser factory provider',
   provides: IDefaultFileBrowser,
   requires: [IFileBrowserFactory, IS3Auth],
@@ -162,7 +162,7 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
  * File browser toolbar buttons.
  */
 const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
-  id: 'jupyter-drives-browser:file-browser-toolbar',
+  id: 'jupydrive-s3:file-browser-toolbar',
   description: 'The toolbar for the drives file browser',
   requires: [
     IDefaultFileBrowser,

@@ -8,13 +8,13 @@ file_extension: ''
 has_binder: false
 has_settings: false
 kind: frontend
-labextension_name: jupyter-drives-browser
+labextension_name: jupydrive-s3
 mimetype: ''
 mimetype_name: ''
 project_short_description: A JupyterLab extension which enables client-side drives
     access.
-python_name: jupyter_drives_browser
-repository: https://github.com/QuantStack/jupyter-drives-browser
+python_name: jupydrive-s3
+repository: https://github.com/QuantStack/jupydrive-s3
 test: true
 viewer_name: ''
 

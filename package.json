@@ -1,5 +1,5 @@
 {
-    "name": "jupyter-drives-browser",
+    "name": "jupydrive-s3",
     "version": "0.1.0-alpha",
     "description": "A JupyterLab extension which enables client-side drives access.",
     "keywords": [
@@ -7,9 +7,9 @@
         "jupyterlab",
         "jupyterlab-extension"
     ],
-    "homepage": "https://github.com/QuantStack/jupyter-drives-browser",
+    "homepage": "https://github.com/QuantStack/jupydrive-s3",
     "bugs": {
-        "url": "https://github.com/QuantStack/jupyter-drives-browser/issues"
+        "url": "https://github.com/QuantStack/jupydrive-s3/issues"
     },
     "license": "BSD-3-Clause",
     "author": {
@@ -26,7 +26,7 @@
     "style": "style/index.css",
     "repository": {
         "type": "git",
-        "url": "https://github.com/QuantStack/jupyter-drives-browser.git"
+        "url": "https://github.com/QuantStack/jupydrive-s3.git"
     },
     "scripts": {
         "build": "jlpm build:lib && jlpm build:labextension:dev",
@@ -38,7 +38,7 @@
         "clean": "jlpm clean:lib",
         "clean:lib": "rimraf lib tsconfig.tsbuildinfo",
         "clean:lintcache": "rimraf .eslintcache .stylelintcache",
-        "clean:labextension": "rimraf jupyter_drives_browser/labextension jupyter_drives_browser/_version.py",
+        "clean:labextension": "rimraf jupydrive-s3/labextension jupydrive-s3/_version.py",
         "clean:all": "jlpm clean:lib && jlpm clean:labextension && jlpm clean:lintcache",
         "eslint": "jlpm eslint:check --fix",
         "eslint:check": "eslint . --cache --ext .ts,.tsx",
@@ -99,7 +99,7 @@
     },
     "jupyterlab": {
         "extension": true,
-        "outputDir": "jupyter_drives_browser/labextension",
+        "outputDir": "jupydrive-s3/labextension",
         "disabledExtensions": [
             "@jupyterlab/filebrowser-extension:default-file-browser"
         ],

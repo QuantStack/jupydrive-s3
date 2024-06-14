@@ -17,7 +17,7 @@ test.skip('should emit an activation console message', async ({ page }) => {
 
   expect(
     logs.filter(
-      s => s === 'JupyterLab extension jupyter-drives-browser is activated!'
+      s => s === 'JupyterLab extension jupydrive-s3 is activated!'
     )
   ).toHaveLength(1);
 });
