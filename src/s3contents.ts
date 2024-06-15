@@ -298,7 +298,11 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     const body = '';
+    let { path } = options;
+    const { type, ext } = options;
+    path = this._root ? (path ? this._root + '/' + path : this._root) : path;
 
+    // get current list of contents of drive
     const old_data = await listS3Contents(
       this._s3Client,
       this._name,
@@ -390,7 +394,7 @@ export class Drive implements Contents.IDrive {
    *
    * @returns A promise which resolves when the file is deleted.
    */
-  async delete(localPath: string): Promise<void> {
+  async delete(localPath :string) : Promise<void> {
     await deleteS3Objects(this._s3Client, this._name, this._root, localPath);
 
     this._fileChanged.emit({
@@ -422,8 +426,6 @@ export class Drive implements Contents.IDrive {
       newLocalPath.indexOf('/') >= 0
         ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
         : newLocalPath;
-    newLocalPath = this._root ? this._root + '/' + newLocalPath : newLocalPath;
-    oldLocalPath = this._root ? this._root + '/' + oldLocalPath : oldLocalPath;
 
     // check if file with new name already exists
     try {
@@ -461,7 +463,7 @@ export class Drive implements Contents.IDrive {
    * @param localPath - Path to file.
    *
    * @param bucketName - The name of the bucket where content is moved.
-   *
+   * 
    * @param root - The root of the bucket, if it exists.
    */
   async incrementName(localPath: string, bucketName: string) {
@@ -553,7 +555,10 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves with the new name when the
    *  file is copied.
    */
-  async incrementCopyName(copiedItemPath: string, bucketName: string) {
+  async incrementCopyName(
+    copiedItemPath: string,
+    bucketName: string
+  ) {
     // copiedItemPath = (this._root ? this._root + '/' : '' ) + copiedItemPath;
     const isDir: boolean = copiedItemPath.split('.').length === 1;
 
@@ -576,7 +581,10 @@ export class Drive implements Contents.IDrive {
         newFileName;
 
     // getting incremented name of Copy in case of duplicates
-    const incrementedName = await this.incrementName(newFilePath, bucketName);
+    const incrementedName = await this.incrementName(
+      newFilePath,
+      bucketName
+    );
 
     return incrementedName;
   }
@@ -597,7 +605,7 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     // construct new file or directory name for the copy
-    const newFileName = await this.incrementCopyName(path, this._name);
+    let newFileName = await this.incrementCopyName(path, this._name);
 
     data = await copyS3Objects(
       this._s3Client,
@@ -638,10 +646,9 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     path =
       path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
-    path = this._root ? this._root + (path ? '/' + path : path) : path;
 
     // construct new file or directory name for the copy
-    const newFileName = await this.incrementCopyName(path, bucketName);
+    let newFileName = await this.incrementCopyName(path,   bucketName);
 
     data = await copyS3Objects(
       this._s3Client,
@@ -784,38 +791,6 @@ export class Drive implements Contents.IDrive {
     // check if directory exists within bucket
     try {
       checkS3Object(this._s3Client, this._name, root, '');
-      // the directory exists, root is formatted correctly
-      return root;
-    } catch (error) {
-      console.log("Given path to root directory doesn't exist within bucket.");
-      return '';
-    }
-  }
-
-  /**
-   * Helping function which formats root by removing all leading or trailing
-   * backslashes and checking if given path to directory exists.
-   *
-   * @param root
-   * @returns formatted root
-   */
-  private async formatRoot(root: string) {
-    // if root is empty, no formatting needed
-    if (root === '') {
-      return root;
-    }
-
-    // reformat the path to arbitrary root so it has no leading or trailing /
-    root = root.replace(/^\/+|\/+$/g, '');
-
-    // check if directory exists within bucket
-    try {
-      await this._s3Client.send(
-        new HeadObjectCommand({
-          Bucket: this._name,
-          Key: root + '/'
-        })
-      );
       // the directory exists, root is formatted correctly
       return root;
     } catch (error) {

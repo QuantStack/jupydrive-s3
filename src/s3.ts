@@ -79,17 +79,8 @@ export const listS3Contents = async (
     if (Contents) {
       Contents.forEach(c => {
         // check if we are dealing with the files inside a subfolder
-        if (
-          c.Key !== root + '/' &&
-          c.Key! !== path + '/' &&
-          c.Key! !== root + '/' + path + '/ '
-        ) {
-          const fileName = c
-            .Key!.replace(
-              (root ? root + '/' : '') + (path ? path + '/' : ''),
-              ''
-            )
-            .split('/')[0];
+        if (c.Key !== root + '/' && c.Key! !== path + '/' && c.Key! !== root + '/' + path + '/ ') {
+          const fileName = c.Key!.replace((root? root + '/' : '') + (path ? path + '/' : ''), '').split('/')[0];
           const [fileType, fileMimeType, fileFormat] = Private.getFileType(
             fileName.split('.')[1],
             registeredFileTypes
@@ -171,7 +162,7 @@ export const getS3FileContents = async (
 
     data = {
       name: path.split('/')[path.split('/').length - 1],
-      path: (root ? root + '/' : '') + path, // TO DO: double check root needs to be here
+      path: (root ? root + '/' : '' ) + path, // TO DO: double check root needs to be here
       last_modified: date,
       created: '',
       content: fileContents,
@@ -210,7 +201,9 @@ export const createS3Object = async (
       Bucket: bucketName,
       Key: path
         ? path + '/' + name + (path.split('.').length === 1 ? '/' : '')
-        : name + (path.split('.').length === 1 ? '/' : ''),
+        : name + (path.split('.').length === 1
+          ?  '/'
+          : ''),
       Body: body as string,
       CacheControl: body === '' ? undefined : 'no-cache'
     })
@@ -288,7 +281,7 @@ export const checkS3Object = async (
   return await s3Client.send(
     new HeadObjectCommand({
       Bucket: bucketName,
-      Key: (root ? root + '/' : '') + path
+      Key: (root ? root + '/' : '' ) + path
     })
   );
 };
@@ -303,7 +296,7 @@ export const renameS3Objects = async (
   registeredFileTypes: IRegisteredFileTypes
 ) => {
   newLocalPath = (root ? root + '/' : '') + newLocalPath;
-  oldLocalPath = (root ? root + '/' : '') + oldLocalPath;
+  oldLocalPath = (root ? root + '/' : '') +  oldLocalPath;
 
   const isDir: boolean = oldLocalPath.split('.').length === 1;
 
@@ -395,7 +388,7 @@ export const copyS3Objects = async (
 ): Promise<Contents.IModel> => {
   const isDir: boolean = path.split('.').length === 1;
 
-  path = (root ? root + '/' : '') + path;
+  path = (root ? root + '/' : '' ) + path;
   toDir = root ? root + (toDir ? '/' + toDir : toDir) : toDir;
 
   name = toDir !== '' ? toDir + '/' + name : name;
@@ -471,7 +464,7 @@ export const countS3ObjectNameAppearances = async (
   originalName: string
 ): Promise<number> => {
   let counter: number = 0;
-  path = (root ? root + '/' : '') + (path ? path + '/' : '');
+  path = (root? root + '/' : '') + (path ? path + '/' : '');
 
   // count number of name appearances
   const command = new ListObjectsV2Command({
@@ -588,19 +581,17 @@ namespace Private {
 
   export function formatBody(
     // options: Partial<Contents.IModel>,
-    content: any,
+    content : any,
     fileFormat: string,
     fileType: string,
     fileMimeType: string
   ) {
     let body: string | Blob;
-    if (fileFormat === 'json') {
-      // TO DO: fileformat != options.format ? options.format === 'json'
+    if (fileFormat === 'json') { // TO DO: fileformat != options.format ? options.format === 'json' 
       body = JSON.stringify(content, null, 2); // options?.content
     } else if (
       // options.format === 'base64' &&
-      fileFormat === 'base64' ||
-      fileType === 'PDF'
+      (fileFormat === 'base64' || fileType === 'PDF')
     ) {
       // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket
       const byteCharacters = atob(content);
