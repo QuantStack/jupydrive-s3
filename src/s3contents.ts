@@ -42,7 +42,7 @@ export class Drive implements Contents.IDrive {
    * @param options - The options used to initialize the object.
    */
   constructor(options: Drive.IOptions) {
-    const { config, name } = options;
+    const { config, name, root } = options;
     this._serverSettings = ServerConnection.makeSettings();
     this._s3Client = new S3Client(config ?? {});
     this._name = name;
@@ -60,7 +60,9 @@ export class Drive implements Contents.IDrive {
         this._region = region!;
       });
     }
-
+    this.formatRoot(root).then((root: string) => {
+      this._root = root;
+    });
     this._registeredFileTypes = {};
   }
 
@@ -100,9 +102,24 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
-   * The Drive name setter */
+   * The Drive name setter
+   */
   set name(name: string) {
     this._name = name;
+  }
+
+  /**
+   * The Drive root getter
+   */
+  get root(): string {
+    return this._root;
+  }
+
+  /**
+   * The Drive root setter
+   */
+  set root(root: string) {
+    this.formatRoot(root).then(root => (this._root = root));
   }
 
   /**
@@ -234,24 +251,23 @@ export class Drive implements Contents.IDrive {
 
     // check if we are getting the list of files from the drive
     if (!path) {
-      // TO DO: replace '' with root variable
       data = await listS3Contents(
         this._s3Client,
         this._name,
-        '',
+        this._root,
         this._registeredFileTypes
       );
     } else {
-      const splitPath = path.split('/');
-      const currentPath = splitPath[splitPath.length - 1];
+      const currentPath = path.split('/')[path.split('/').length - 1];
 
       // listing contents of a folder
       if (currentPath.indexOf('.') === -1) {
         data = await listS3Contents(
           this._s3Client,
           this._name,
-          path + '/',
-          this.registeredFileTypes
+          this.root,
+          this.registeredFileTypes,
+          path
         );
       }
       // getting the contents of a specific file
@@ -259,6 +275,7 @@ export class Drive implements Contents.IDrive {
         data = await getS3FileContents(
           this._s3Client,
           this._name,
+          this._root,
           path,
           this.registeredFileTypes
         );
@@ -281,25 +298,28 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     const body = '';
+    let { path } = options;
+    const { type, ext } = options;
+    path = this._root ? (path ? this._root + '/' + path : this._root) : path;
 
     // get current list of contents of drive
     const old_data = await listS3Contents(
       this._s3Client,
       this._name,
-      '',
+      '', // we consider the root undefined in order to retrieve the complete list of contents
       this.registeredFileTypes
     );
-
     if (options.type !== undefined) {
       // get incremented untitled name
-      const name = this.incrementUntitledName(old_data, options);
+      const name = this.incrementUntitledName(old_data, { path, type, ext });
       data = await createS3Object(
         this._s3Client,
         this._name,
+        this._root,
         name,
         options.path as string,
         body,
-        options,
+        // options,
         this.registeredFileTypes
       );
     } else {
@@ -375,7 +395,7 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves when the file is deleted.
    */
   async delete(localPath: string): Promise<void> {
-    await deleteS3Objects(this._s3Client, this._name, localPath);
+    await deleteS3Objects(this._s3Client, this._name, this._root, localPath);
 
     this._fileChanged.emit({
       type: 'delete',
@@ -407,23 +427,12 @@ export class Drive implements Contents.IDrive {
         ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
         : newLocalPath;
 
-    const isDir: boolean = oldLocalPath.split('.').length === 1;
-
     // check if file with new name already exists
     try {
-      checkS3Object(this._s3Client, this._name, newLocalPath);
+      checkS3Object(this._s3Client, this._name, this._root, newLocalPath);
       console.log('File name already exists!');
-      // construct new incremented name and it's corresponding path
-      newFileName = await this.incrementName(newLocalPath, isDir, this._name);
-      if (isDir) {
-        newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
-      }
-      newLocalPath = isDir
-        ? newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
-          newFileName +
-          '/'
-        : newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
-          newFileName;
+      // construct new incremented name
+      newFileName = await this.incrementName(newLocalPath, this._name);
     } catch (e) {
       // function throws error as the file name doesn't exist
       console.log("Name doesn't exist!");
@@ -432,6 +441,7 @@ export class Drive implements Contents.IDrive {
     renameS3Objects(
       this._s3Client,
       this._name,
+      this._root,
       oldLocalPath,
       newLocalPath,
       newFileName,
@@ -452,11 +462,12 @@ export class Drive implements Contents.IDrive {
    *
    * @param localPath - Path to file.
    *
-   * @param isDir - Whether the content is a directory or a file.
-   *
    * @param bucketName - The name of the bucket where content is moved.
+   *
+   * @param root - The root of the bucket, if it exists.
    */
-  async incrementName(localPath: string, isDir: boolean, bucketName: string) {
+  async incrementName(localPath: string, bucketName: string) {
+    const isDir: boolean = localPath.split('.').length === 1;
     let fileExtension: string = '';
     let originalName: string = '';
 
@@ -479,6 +490,7 @@ export class Drive implements Contents.IDrive {
     const counter = await countS3ObjectNameAppearances(
       this._s3Client,
       this._name,
+      this._root,
       localPath,
       originalName
     );
@@ -511,14 +523,16 @@ export class Drive implements Contents.IDrive {
       localPath.indexOf('/') === -1
         ? localPath
         : localPath.split('/')[localPath.split.length - 1];
+    localPath = this._root ? this._root + '/' + localPath : localPath;
 
     data = await createS3Object(
       this._s3Client,
       this._name,
+      this._root,
       fileName,
       localPath,
       options.content,
-      options,
+      // options,
       this._registeredFileTypes
     );
 
@@ -536,18 +550,15 @@ export class Drive implements Contents.IDrive {
    *
    * @param path - The original file path.
    *
-   * @param isDir - The boolean marking if we are dealing with a file or directory.
-   *
    * @param bucketName - The name of the bucket where content is moved.
    *
    * @returns A promise which resolves with the new name when the
    *  file is copied.
    */
-  async incrementCopyName(
-    copiedItemPath: string,
-    isDir: boolean,
-    bucketName: string
-  ) {
+  async incrementCopyName(copiedItemPath: string, bucketName: string) {
+    // copiedItemPath = (this._root ? this._root + '/' : '' ) + copiedItemPath;
+    const isDir: boolean = copiedItemPath.split('.').length === 1;
+
     // extracting original file name
     const originalFileName =
       copiedItemPath.split('/')[copiedItemPath.split('/').length - 1];
@@ -567,11 +578,7 @@ export class Drive implements Contents.IDrive {
         newFileName;
 
     // getting incremented name of Copy in case of duplicates
-    const incrementedName = await this.incrementName(
-      newFilePath,
-      isDir,
-      bucketName
-    );
+    const incrementedName = await this.incrementName(newFilePath, bucketName);
 
     return incrementedName;
   }
@@ -591,16 +598,13 @@ export class Drive implements Contents.IDrive {
     toDir: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    const isDir: boolean = path.split('.').length === 1;
-
     // construct new file or directory name for the copy
-    let newFileName = await this.incrementCopyName(path, isDir, this._name);
-    newFileName = toDir !== '' ? toDir + '/' + newFileName : newFileName;
-    path = isDir ? path + '/' : path;
+    const newFileName = await this.incrementCopyName(path, this._name);
 
     data = await copyS3Objects(
       this._s3Client,
       this._name,
+      this._root,
       newFileName,
       path,
       toDir,
@@ -637,16 +641,13 @@ export class Drive implements Contents.IDrive {
     path =
       path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
 
-    const isDir: boolean = path.split('.').length === 1;
-
     // construct new file or directory name for the copy
-    let newFileName = await this.incrementCopyName(path, isDir, bucketName);
-    newFileName = toDir !== '' ? toDir + '/' + newFileName : newFileName;
-    path = isDir ? path + '/' : path;
+    const newFileName = await this.incrementCopyName(path, bucketName);
 
     data = await copyS3Objects(
       this._s3Client,
       this._name,
+      this._root,
       newFileName,
       path,
       toDir,
@@ -765,9 +766,37 @@ export class Drive implements Contents.IDrive {
     }
   }
 
+  /**
+   * Helping function which formats root by removing all leading or trailing
+   * backslashes and checking if given path to directory exists.
+   *
+   * @param root
+   * @returns formatted root
+   */
+  private async formatRoot(root: string) {
+    // if root is empty, no formatting needed
+    if (root === '') {
+      return root;
+    }
+
+    // reformat the path to arbitrary root so it has no leading or trailing /
+    root = root.replace(/^\/+|\/+$/g, '');
+
+    // check if directory exists within bucket
+    try {
+      checkS3Object(this._s3Client, this._name, root, '');
+      // the directory exists, root is formatted correctly
+      return root;
+    } catch (error) {
+      console.log("Given path to root directory doesn't exist within bucket.");
+      return '';
+    }
+  }
+
   private _serverSettings: ServerConnection.ISettings;
   private _s3Client: S3Client;
   private _name: string = '';
+  private _root: string = '';
   private _provider: string = '';
   private _baseUrl: string = '';
   private _region: string = '';
@@ -793,6 +822,11 @@ export namespace Drive {
      * paths to disambiguate it from other drives.
      */
     name: string;
+
+    /**
+     * Path to directory from drive, which acts as root.
+     */
+    root: string;
 
     /**
      * The server settings for the server.
