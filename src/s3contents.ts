@@ -394,7 +394,7 @@ export class Drive implements Contents.IDrive {
    *
    * @returns A promise which resolves when the file is deleted.
    */
-  async delete(localPath :string) : Promise<void> {
+  async delete(localPath: string): Promise<void> {
     await deleteS3Objects(this._s3Client, this._name, this._root, localPath);
 
     this._fileChanged.emit({
@@ -463,7 +463,7 @@ export class Drive implements Contents.IDrive {
    * @param localPath - Path to file.
    *
    * @param bucketName - The name of the bucket where content is moved.
-   * 
+   *
    * @param root - The root of the bucket, if it exists.
    */
   async incrementName(localPath: string, bucketName: string) {
@@ -555,10 +555,7 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves with the new name when the
    *  file is copied.
    */
-  async incrementCopyName(
-    copiedItemPath: string,
-    bucketName: string
-  ) {
+  async incrementCopyName(copiedItemPath: string, bucketName: string) {
     // copiedItemPath = (this._root ? this._root + '/' : '' ) + copiedItemPath;
     const isDir: boolean = copiedItemPath.split('.').length === 1;
 
@@ -581,10 +578,7 @@ export class Drive implements Contents.IDrive {
         newFileName;
 
     // getting incremented name of Copy in case of duplicates
-    const incrementedName = await this.incrementName(
-      newFilePath,
-      bucketName
-    );
+    const incrementedName = await this.incrementName(newFilePath, bucketName);
 
     return incrementedName;
   }
@@ -605,7 +599,7 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     // construct new file or directory name for the copy
-    let newFileName = await this.incrementCopyName(path, this._name);
+    const newFileName = await this.incrementCopyName(path, this._name);
 
     data = await copyS3Objects(
       this._s3Client,
@@ -648,7 +642,7 @@ export class Drive implements Contents.IDrive {
       path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
 
     // construct new file or directory name for the copy
-    let newFileName = await this.incrementCopyName(path,   bucketName);
+    const newFileName = await this.incrementCopyName(path, bucketName);
 
     data = await copyS3Objects(
       this._s3Client,
