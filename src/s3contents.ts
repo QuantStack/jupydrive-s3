@@ -298,11 +298,7 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     const body = '';
-    let { path } = options;
-    const { type, ext } = options;
-    path = this._root ? (path ? this._root + '/' + path : this._root) : path;
 
-    // get current list of contents of drive
     const old_data = await listS3Contents(
       this._s3Client,
       this._name,
@@ -426,6 +422,8 @@ export class Drive implements Contents.IDrive {
       newLocalPath.indexOf('/') >= 0
         ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
         : newLocalPath;
+    newLocalPath = this._root ? this._root + '/' + newLocalPath : newLocalPath;
+    oldLocalPath = this._root ? this._root + '/' + oldLocalPath : oldLocalPath;
 
     // check if file with new name already exists
     try {
@@ -640,6 +638,7 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     path =
       path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
+    path = this._root ? this._root + (path ? '/' + path : path) : path;
 
     // construct new file or directory name for the copy
     const newFileName = await this.incrementCopyName(path, bucketName);
@@ -785,6 +784,38 @@ export class Drive implements Contents.IDrive {
     // check if directory exists within bucket
     try {
       checkS3Object(this._s3Client, this._name, root, '');
+      // the directory exists, root is formatted correctly
+      return root;
+    } catch (error) {
+      console.log("Given path to root directory doesn't exist within bucket.");
+      return '';
+    }
+  }
+
+  /**
+   * Helping function which formats root by removing all leading or trailing
+   * backslashes and checking if given path to directory exists.
+   *
+   * @param root
+   * @returns formatted root
+   */
+  private async formatRoot(root: string) {
+    // if root is empty, no formatting needed
+    if (root === '') {
+      return root;
+    }
+
+    // reformat the path to arbitrary root so it has no leading or trailing /
+    root = root.replace(/^\/+|\/+$/g, '');
+
+    // check if directory exists within bucket
+    try {
+      await this._s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this._name,
+          Key: root + '/'
+        })
+      );
       // the directory exists, root is formatted correctly
       return root;
     } catch (error) {

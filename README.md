@@ -1,9 +1,9 @@
-# jupyter-drives-browser
+# jupydrive-s3
 
-[![Github Actions Status](https://github.com/QuantStack/jupyter-drives-browser/workflows/Build/badge.svg)](https://github.com/QuantStack/jupyter-drives-browser/actions/workflows/build.yml)
+[![Github Actions Status](https://github.com/QuantStack/jupydrive-s3/workflows/Build/badge.svg)](https://github.com/QuantStack/jupydrive-s3/actions/workflows/build.yml)
 A JupyterLab extension which enables client-side drives access.
 
-![Screenshot from 2024-05-06 15-22-59](https://github.com/DenisaCG/jupyter-drives-browser/assets/91504950/c6912105-cc0b-4a95-9234-57faebe75b90)
+![Screenshot from 2024-05-06 15-22-59](https://github.com/DenisaCG/jupydrive-s3/assets/91504950/c6912105-cc0b-4a95-9234-57faebe75b90)
 
 The drives are used as a filesystem, having support for all basic functionalities (file tree-view, editing contents, copying, renaming, deleting, downloading etc).
 
@@ -33,7 +33,7 @@ More information about `CORS` [here](https://docs.aws.amazon.com/AmazonS3/latest
 To install the extension, execute:
 
 ```bash
-pip install jupyter_drives_browser
+pip install jupydrive_s3
 ```
 
 ## Uninstall
@@ -41,7 +41,7 @@ pip install jupyter_drives_browser
 To remove the extension, execute:
 
 ```bash
-pip uninstall jupyter_drives_browser
+pip uninstall jupydrive_s3
 ```
 
 ## Contributing
@@ -56,7 +56,7 @@ The `jlpm` command is JupyterLab's pinned version of
 
 ```bash
 # Clone the repo to your local environment
-# Change directory to the jupyter_drives_browser directory
+# Change directory to the jupydrive_s3 directory
 # Install package in development mode
 pip install -e "."
 # Link your development version of the extension with JupyterLab
@@ -85,12 +85,12 @@ jupyter lab build --minimize=False
 ### Development uninstall
 
 ```bash
-pip uninstall jupyter_drives_browser
+pip uninstall jupydrive_s3
 ```
 
 In development mode, you will also need to remove the symlink created by `jupyter labextension develop`
 command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
-folder is located. Then you can remove the symlink named `jupyter-drives-browser` within that folder.
+folder is located. Then you can remove the symlink named `jupydrive-s3` within that folder.
 
 ### Testing the extension
 
