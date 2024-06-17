@@ -297,11 +297,6 @@ export class Drive implements Contents.IDrive {
   async newUntitled(
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    const body = '';
-    let { path } = options;
-    const { type, ext } = options;
-    path = this._root ? (path ? this._root + '/' + path : this._root) : path;
-
     // get current list of contents of drive
     const old_data = await listS3Contents(
       this._s3Client,
@@ -309,17 +304,17 @@ export class Drive implements Contents.IDrive {
       '', // we consider the root undefined in order to retrieve the complete list of contents
       this.registeredFileTypes
     );
+
     if (options.type !== undefined) {
       // get incremented untitled name
-      const name = this.incrementUntitledName(old_data, { path, type, ext });
+      const name = this.incrementUntitledName(old_data, options);
       data = await createS3Object(
         this._s3Client,
         this._name,
         this._root,
         name,
-        options.path as string,
-        body,
-        // options,
+        options.path ? options.path + '/' + name : name,
+        '', // create new file with empty body
         this.registeredFileTypes
       );
     } else {
@@ -427,26 +422,28 @@ export class Drive implements Contents.IDrive {
         ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
         : newLocalPath;
 
-    // check if file with new name already exists
-    try {
-      checkS3Object(this._s3Client, this._name, this._root, newLocalPath);
-      console.log('File name already exists!');
-      // construct new incremented name
-      newFileName = await this.incrementName(newLocalPath, this._name);
-    } catch (e) {
-      // function throws error as the file name doesn't exist
-      console.log("Name doesn't exist!");
-    }
-
-    renameS3Objects(
-      this._s3Client,
-      this._name,
-      this._root,
-      oldLocalPath,
-      newLocalPath,
-      newFileName,
-      this._registeredFileTypes
-    );
+    await checkS3Object(this._s3Client, this._name, this._root, newLocalPath)
+      .then(async () => {
+        console.log('File name already exists!');
+        // construct new incremented name
+        newFileName = await this.incrementName(newLocalPath, this._name);
+      })
+      .catch(() => {
+        // function throws error as the file name doesn't exist
+        console.log("Name doesn't exist!");
+      })
+      .finally(async () => {
+        // once the name has been incremented if needed, proceed with the renaming
+        data = await renameS3Objects(
+          this._s3Client,
+          this._name,
+          this._root,
+          oldLocalPath,
+          newLocalPath,
+          newFileName,
+          this._registeredFileTypes
+        );
+      });
 
     this._fileChanged.emit({
       type: 'rename',
@@ -489,7 +486,7 @@ export class Drive implements Contents.IDrive {
 
     const counter = await countS3ObjectNameAppearances(
       this._s3Client,
-      this._name,
+      bucketName,
       this._root,
       localPath,
       originalName
@@ -523,7 +520,6 @@ export class Drive implements Contents.IDrive {
       localPath.indexOf('/') === -1
         ? localPath
         : localPath.split('/')[localPath.split.length - 1];
-    localPath = this._root ? this._root + '/' + localPath : localPath;
 
     data = await createS3Object(
       this._s3Client,
@@ -532,7 +528,6 @@ export class Drive implements Contents.IDrive {
       fileName,
       localPath,
       options.content,
-      // options,
       this._registeredFileTypes
     );
 

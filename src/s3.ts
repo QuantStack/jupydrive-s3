@@ -193,11 +193,8 @@ export const createS3Object = async (
   name: string,
   path: string,
   body: any, //string | Blob,
-  // options: Contents.ICreateOptions | Partial<Contents.IModel>,
   registeredFileTypes: IRegisteredFileTypes
 ): Promise<Contents.IModel> => {
-  // let { path } = options;
-  // const { type, ext } = options;
   path = root ? (path ? root + '/' + path : root) : path;
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
@@ -208,10 +205,8 @@ export const createS3Object = async (
   await s3Client.send(
     new PutObjectCommand({
       Bucket: bucketName,
-      Key: path
-        ? path + '/' + name + (path.split('.').length === 1 ? '/' : '')
-        : name + (path.split('.').length === 1 ? '/' : ''),
-      Body: body as string,
+      Key: path + (name.split('.').length === 1 ? '/' : ''),
+      Body: body,
       CacheControl: body === '' ? undefined : 'no-cache'
     })
   );
@@ -301,7 +296,7 @@ export const renameS3Objects = async (
   newLocalPath: string,
   newFileName: string,
   registeredFileTypes: IRegisteredFileTypes
-) => {
+): Promise<Contents.IModel> => {
   newLocalPath = (root ? root + '/' : '') + newLocalPath;
   oldLocalPath = (root ? root + '/' : '') + oldLocalPath;
 
@@ -310,12 +305,10 @@ export const renameS3Objects = async (
   if (isDir) {
     newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
   }
-  newLocalPath = isDir
-    ? newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
-      newFileName +
-      '/'
-    : newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
-      newFileName;
+  newLocalPath =
+    newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
+    newFileName +
+    (isDir ? '/' : '');
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
     newFileName!.split('.')[1],
@@ -381,6 +374,8 @@ export const renameS3Objects = async (
     }
     command.input.ContinuationToken = NextContinuationToken;
   }
+
+  return data;
 };
 
 export const copyS3Objects = async (
