@@ -249,7 +249,7 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     path = path.replace(this._name + '/', '');
 
-    // check if we are getting the list of files from the drive
+    // getting the list of files from the root
     if (!path) {
       data = await listS3Contents(
         this._s3Client,

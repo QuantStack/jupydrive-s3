@@ -67,7 +67,7 @@ export const listS3Contents = async (
   // listing contents of folder
   const command = new ListObjectsV2Command({
     Bucket: bucketName,
-    Prefix: (root ? root + '/' : '') + (path ? path + '/' : '')
+    Prefix: root + (root && path ? '/' : '') + (path ? path : '')
   });
 
   let isTruncated: boolean | undefined = true;
@@ -81,8 +81,8 @@ export const listS3Contents = async (
         // check if we are dealing with the files inside a subfolder
         if (
           c.Key !== root + '/' &&
-          c.Key! !== path + '/' &&
-          c.Key! !== root + '/' + path + '/ '
+          c.Key !== path + '/' &&
+          c.Key !== root + '/' + path + '/'
         ) {
           const fileName = c
             .Key!.replace(
@@ -306,9 +306,7 @@ export const renameS3Objects = async (
     newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
   }
   newLocalPath =
-    newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) +
-    newFileName +
-    (isDir ? '/' : '');
+    newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) + newFileName;
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
     newFileName!.split('.')[1],
