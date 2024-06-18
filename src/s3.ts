@@ -7,6 +7,7 @@ import {
   GetObjectCommand,
   PutObjectCommand,
   HeadObjectCommand,
+  HeadObjectCommandOutput,
   S3Client
 } from '@aws-sdk/client-s3';
 
@@ -37,6 +38,15 @@ let data: Contents.IModel = {
   type: ''
 };
 
+/**
+ * Get the presigned URL for an S3 object.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The name of bucket.
+ * @param path: The path to the object.
+ *
+ * @returns: A promise which resolves with presigned URL.
+ */
 export const presignedS3Url = async (
   s3Client: S3Client,
   bucketName: string,
@@ -56,6 +66,17 @@ export const presignedS3Url = async (
   return presignedUrl;
 };
 
+/**
+ * Get list of contents of root or directory.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The bucket name.
+ * @param root: The path to the directory acting as root.
+ * @param registeredFileTypes: The list containing all registered file types.
+ * @param path: The path to the directory (optional).
+ *
+ * @returns: A promise which resolves with the contents model.
+ */
 export const listS3Contents = async (
   s3Client: S3Client,
   bucketName: string,
@@ -133,6 +154,17 @@ export const listS3Contents = async (
   return data;
 };
 
+/**
+ * Retrieve contents of a file.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The bucket name.
+ * @param root: The path to the directory acting as root.
+ * @param path: The path to to file.
+ * @param registeredFileTypes: The list containing all registered file types.
+ *
+ * @returns: A promise which resolves with the file contents model.
+ */
 export const getS3FileContents = async (
   s3Client: S3Client,
   bucketName: string,
@@ -187,6 +219,20 @@ export const getS3FileContents = async (
   return data;
 };
 
+/**
+ * Create a new file or directory or save a file.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The bucket name.
+ * @param root: The path to the directory acting as root.
+ * @param name: The name of file or directory to be created or saved.
+ * @param path: The path to to file or directory.
+ * @param body: The new contents of the file.
+ * @param options: The optional parameteres of saving a file or directory.
+ * @param registeredFileTypes: The list containing all registered file types.
+ *
+ * @returns A promise which resolves with the new file or directory contents model.
+ */
 export const createS3Object = async (
   s3Client: S3Client,
   bucketName: string,
@@ -242,12 +288,20 @@ export const createS3Object = async (
   return data;
 };
 
+/**
+ * Deleting a file or directory.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The bucket name.
+ * @param root: The path to the directory acting as root.
+ * @param path: The path to to file or directory.
+ */
 export const deleteS3Objects = async (
   s3Client: S3Client,
   bucketName: string,
   root: string,
   path: string
-) => {
+): Promise<void> => {
   path = PathExt.join(root, path);
 
   // get list of contents with given prefix (path)
@@ -277,12 +331,24 @@ export const deleteS3Objects = async (
   }
 };
 
+/**
+ * Check whether an object (file or directory) exists within given S3 bucket.
+ *
+ * Used before renaming a file to avoid overwriting and when setting the root.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The bucket name.
+ * @param root: The path to the directory acting as root.
+ * @param path: The path to to file or directory.
+ *
+ * @returns A promise which resolves or rejects depending on the existance of the object.
+ */
 export const checkS3Object = async (
   s3Client: S3Client,
   bucketName: string,
   root: string,
   path?: string
-) => {
+): Promise<HeadObjectCommandOutput> => {
   return await s3Client.send(
     new HeadObjectCommand({
       Bucket: bucketName,
@@ -291,6 +357,19 @@ export const checkS3Object = async (
   );
 };
 
+/**
+ * Rename a file or directory.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The bucket name.
+ * @param root: The path to the directory acting as root.
+ * @param oldLocalPath: The old path of the object.
+ * @param newLocalPath: The new path of the object.
+ * @param newFileName: The new object name.
+ * @param registeredFileTypes: The list containing all registered file types.
+ *
+ * @returns A promise which resolves with the new object contents model.
+ */
 export const renameS3Objects = async (
   s3Client: S3Client,
   bucketName: string,
@@ -379,6 +458,22 @@ export const renameS3Objects = async (
   return data;
 };
 
+/**
+ * Copy a file or directory to a new location within the bucket or to another bucket.
+ *
+ * If no additional bucket name is provided, the content will be copied to the default bucket.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The bucket name.
+ * @param root: The path to the directory acting as root.
+ * @param name: The new object name.
+ * @param path: The original path to the object to be copied.
+ * @param toDir: The new path where object should be copied.
+ * @param registeredFileTypes: The list containing all registered file types.
+ * @param newBucketName: The name of the bucket where to copy the object (optional).
+ *
+ * @returns A promise which resolves with the new object contents model.
+ */
 export const copyS3Objects = async (
   s3Client: S3Client,
   bucketName: string,
@@ -459,6 +554,17 @@ export const copyS3Objects = async (
   return data;
 };
 
+/**
+ * Count number of appeareances of object name.
+ *
+ * @param s3Client: The S3Client used to send commands.
+ * @param bucketName: The bucket name.
+ * @param root: The path to the directory acting as root.
+ * @param path: The path to the object.
+ * @param originalName: The original name of the object (before it was incremented).
+ *
+ * @returns A promise which resolves with the number of appeareances of object.
+ */
 export const countS3ObjectNameAppearances = async (
   s3Client: S3Client,
   bucketName: string,
@@ -581,6 +687,17 @@ namespace Private {
     );
   }
 
+  /**
+   * Helping function used for formatting the body of files.
+   *
+   * @param options: The optional parameteres of saving a file or directory.
+   * @param content: The content to be formatted.
+   * @param fileFormat: The registered file format.
+   * @param fileType: The registered file type.
+   * @param fileMimeType: The registered file mimetype.
+   *
+   * @returns The formatted content (body).
+   */
   export function formatBody(
     options: Partial<Contents.IModel>,
     content: any,
