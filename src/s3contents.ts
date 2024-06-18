@@ -1,6 +1,6 @@
 import { Signal, ISignal } from '@lumino/signaling';
 import { Contents, ServerConnection } from '@jupyterlab/services';
-import { URLExt } from '@jupyterlab/coreutils';
+import { URLExt, PathExt } from '@jupyterlab/coreutils';
 import { JupyterFrontEnd } from '@jupyterlab/application';
 
 import {
@@ -258,10 +258,10 @@ export class Drive implements Contents.IDrive {
         this._registeredFileTypes
       );
     } else {
-      const currentPath = path.split('/')[path.split('/').length - 1];
+      const currentPath = PathExt.basename(path);
 
       // listing contents of a folder
-      if (currentPath.indexOf('.') === -1) {
+      if (PathExt.extname(currentPath) === '') {
         data = await listS3Contents(
           this._s3Client,
           this._name,
@@ -313,8 +313,9 @@ export class Drive implements Contents.IDrive {
         this._name,
         this._root,
         name,
-        options.path ? options.path + '/' + name : name,
-        '', // create new file with empty body
+        options.path ? PathExt.join(options.path, name) : name,
+        '', // create new file with empty body,
+        options,
         this.registeredFileTypes
       );
     } else {
@@ -417,10 +418,7 @@ export class Drive implements Contents.IDrive {
     newLocalPath: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    let newFileName =
-      newLocalPath.indexOf('/') >= 0
-        ? newLocalPath.split('/')[newLocalPath.split('/').length - 1]
-        : newLocalPath;
+    let newFileName = PathExt.basename(newLocalPath);
 
     await checkS3Object(this._s3Client, this._name, this._root, newLocalPath)
       .then(async () => {
@@ -464,22 +462,22 @@ export class Drive implements Contents.IDrive {
    * @param root - The root of the bucket, if it exists.
    */
   async incrementName(localPath: string, bucketName: string) {
-    const isDir: boolean = localPath.split('.').length === 1;
+    const isDir: boolean = PathExt.extname(localPath) === '';
     let fileExtension: string = '';
     let originalName: string = '';
 
     // check if we are dealing with a directory
     if (isDir) {
       localPath = localPath.substring(0, localPath.length - 1);
-      originalName = localPath.split('/')[localPath.split('/').length - 1];
+      originalName = PathExt.basename(localPath);
     }
     // dealing with a file
     else {
       // extract name from path
-      originalName = localPath.split('/')[localPath.split('/').length - 1];
+      originalName = PathExt.basename(localPath);
       // eliminate file extension
-      fileExtension =
-        originalName.split('.')[originalName.split('.').length - 1];
+      fileExtension = PathExt.extname(originalName);
+      //originalName.split('.')[originalName.split('.').length - 1];
       originalName =
         originalName.split('.')[originalName.split('.').length - 2];
     }
@@ -516,10 +514,7 @@ export class Drive implements Contents.IDrive {
     localPath: string,
     options: Partial<Contents.IModel> = {}
   ): Promise<Contents.IModel> {
-    const fileName =
-      localPath.indexOf('/') === -1
-        ? localPath
-        : localPath.split('/')[localPath.split.length - 1];
+    const fileName = PathExt.basename(localPath);
 
     data = await createS3Object(
       this._s3Client,
@@ -528,6 +523,7 @@ export class Drive implements Contents.IDrive {
       fileName,
       localPath,
       options.content,
+      options,
       this._registeredFileTypes
     );
 
@@ -551,12 +547,10 @@ export class Drive implements Contents.IDrive {
    *  file is copied.
    */
   async incrementCopyName(copiedItemPath: string, bucketName: string) {
-    // copiedItemPath = (this._root ? this._root + '/' : '' ) + copiedItemPath;
-    const isDir: boolean = copiedItemPath.split('.').length === 1;
+    const isDir: boolean = PathExt.extname(copiedItemPath) === '';
 
     // extracting original file name
-    const originalFileName =
-      copiedItemPath.split('/')[copiedItemPath.split('/').length - 1];
+    const originalFileName = PathExt.basename(copiedItemPath);
 
     // constructing new file name and path with -Copy string
     const newFileName = isDir
@@ -565,12 +559,10 @@ export class Drive implements Contents.IDrive {
         '-Copy.' +
         originalFileName.split('.')[1];
 
-    const newFilePath = isDir
-      ? copiedItemPath.substring(0, copiedItemPath.lastIndexOf('/') + 1) +
-        newFileName +
-        '/'
-      : copiedItemPath.substring(0, copiedItemPath.lastIndexOf('/') + 1) +
-        newFileName;
+    const newFilePath =
+      copiedItemPath.substring(0, copiedItemPath.lastIndexOf('/') + 1) +
+      newFileName +
+      (isDir ? '/' : '');
 
     // getting incremented name of Copy in case of duplicates
     const incrementedName = await this.incrementName(newFilePath, bucketName);
@@ -633,9 +625,6 @@ export class Drive implements Contents.IDrive {
     bucketName: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
-    path =
-      path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
-
     // construct new file or directory name for the copy
     const newFileName = await this.incrementCopyName(path, bucketName);
 
@@ -749,7 +738,6 @@ export class Drive implements Contents.IDrive {
 
       // store the mimetype and fileformat for each file extension
       fileType.extensions.forEach(extension => {
-        extension = extension.split('.')[1];
         if (!this._registeredFileTypes[extension]) {
           this._registeredFileTypes[extension] = {
             fileType: fileType.name,
@@ -775,11 +763,10 @@ export class Drive implements Contents.IDrive {
     }
 
     // reformat the path to arbitrary root so it has no leading or trailing /
-    root = root.replace(/^\/+|\/+$/g, '');
-
+    root = PathExt.removeSlash(PathExt.normalize(root));
     // check if directory exists within bucket
     try {
-      checkS3Object(this._s3Client, this._name, root, '');
+      checkS3Object(this._s3Client, this._name, root);
       // the directory exists, root is formatted correctly
       return root;
     } catch (error) {

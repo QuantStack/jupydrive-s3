@@ -1,4 +1,5 @@
 import { Contents } from '@jupyterlab/services';
+import { PathExt } from '@jupyterlab/coreutils';
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
@@ -67,7 +68,7 @@ export const listS3Contents = async (
   // listing contents of folder
   const command = new ListObjectsV2Command({
     Bucket: bucketName,
-    Prefix: root + (root && path ? '/' : '') + (path ? path : '')
+    Prefix: path ? PathExt.join(root, path) : root
   });
 
   let isTruncated: boolean | undefined = true;
@@ -91,13 +92,13 @@ export const listS3Contents = async (
             )
             .split('/')[0];
           const [fileType, fileMimeType, fileFormat] = Private.getFileType(
-            fileName.split('.')[1],
+            PathExt.extname(PathExt.basename(fileName)),
             registeredFileTypes
           );
 
           fileList[fileName] = fileList[fileName] ?? {
             name: fileName,
-            path: path ? path + '/' + fileName : fileName,
+            path: path ? PathExt.join(path, fileName) : fileName,
             last_modified: c.LastModified!.toISOString(),
             created: '',
             content: !fileName.split('.')[1] ? [] : null,
@@ -117,7 +118,7 @@ export const listS3Contents = async (
   }
 
   data = {
-    name: path ? path.split('/')[path.split('/').length - 1] : bucketName,
+    name: path ? PathExt.basename(path) : bucketName,
     path: path ? path + '/' : bucketName,
     last_modified: '',
     created: '',
@@ -142,7 +143,7 @@ export const getS3FileContents = async (
   // retrieving contents and metadata of file
   const command = new GetObjectCommand({
     Bucket: bucketName,
-    Key: (root ? root + '/' : '') + path
+    Key: PathExt.join(root, path)
   });
 
   const response = await s3Client.send(command);
@@ -150,7 +151,7 @@ export const getS3FileContents = async (
   if (response) {
     const date: string = response.LastModified!.toISOString();
     const [fileType, fileMimeType, fileFormat] = Private.getFileType(
-      path.split('/')[path.split('/').length - 1].split('.')[1],
+      PathExt.extname(PathExt.basename(path)),
       registeredFileTypes
     );
 
@@ -170,8 +171,8 @@ export const getS3FileContents = async (
     }
 
     data = {
-      name: path.split('/')[path.split('/').length - 1],
-      path: (root ? root + '/' : '') + path, // TO DO: double check root needs to be here
+      name: PathExt.basename(path),
+      path: PathExt.join(root, path),
       last_modified: date,
       created: '',
       content: fileContents,
@@ -192,34 +193,42 @@ export const createS3Object = async (
   root: string,
   name: string,
   path: string,
-  body: any, //string | Blob,
+  body: string | Blob,
+  options: Partial<Contents.IModel>,
   registeredFileTypes: IRegisteredFileTypes
 ): Promise<Contents.IModel> => {
-  path = root ? (path ? root + '/' + path : root) : path;
+  path = PathExt.join(root, path);
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
-    name.split('.')[1],
+    PathExt.extname(PathExt.basename(name)),
     registeredFileTypes
   );
 
   await s3Client.send(
     new PutObjectCommand({
       Bucket: bucketName,
-      Key: path + (name.split('.').length === 1 ? '/' : ''),
+      Key: path + (PathExt.extname(name) === '' ? '/' : ''),
       Body: body,
       CacheControl: body === '' ? undefined : 'no-cache'
     })
   );
 
-  // TO DO: improve way in which we check if we create new file or overwrrite exisiting one
+  console.log(options);
   // checking if we are creating a new file or saving an existing one (overwrriting)
-  if (body === '') {
-    body = Private.formatBody(body, fileFormat, fileType, fileMimeType);
+  if (!('ext' in options)) {
+    console.log('ext in options exists!');
+    body = Private.formatBody(
+      options,
+      body,
+      fileFormat,
+      fileType,
+      fileMimeType
+    );
   }
 
   data = {
     name: name,
-    path: (path ? path + '/' : '') + name,
+    path: PathExt.join(path, name),
     last_modified: new Date().toISOString(),
     created: new Date().toISOString(),
     content: path.split('.').length === 1 ? [] : body,
@@ -239,18 +248,12 @@ export const deleteS3Objects = async (
   root: string,
   path: string
 ) => {
-  // TO DO: check if new way to frame path works
-  // localPath = this._root
-  //     ? localPath
-  //       ? this._root + '/' + localPath
-  //       : this._root
-  //     : localPath;
-  path = (root ? root + '/' : '') + path;
+  path = PathExt.join(root, path);
 
   // get list of contents with given prefix (path)
   const command = new ListObjectsV2Command({
     Bucket: bucketName,
-    Prefix: path.split('.').length === 1 ? path + '/' : path
+    Prefix: PathExt.extname(path) === '' ? path + '/' : path
   });
 
   let isTruncated: boolean | undefined = true;
@@ -283,7 +286,7 @@ export const checkS3Object = async (
   return await s3Client.send(
     new HeadObjectCommand({
       Bucket: bucketName,
-      Key: (root ? root + '/' : '') + path
+      Key: path ? PathExt.join(root, path) : root + '/' // check whether we are looking at an object or the root
     })
   );
 };
@@ -297,10 +300,10 @@ export const renameS3Objects = async (
   newFileName: string,
   registeredFileTypes: IRegisteredFileTypes
 ): Promise<Contents.IModel> => {
-  newLocalPath = (root ? root + '/' : '') + newLocalPath;
-  oldLocalPath = (root ? root + '/' : '') + oldLocalPath;
+  newLocalPath = PathExt.join(root, newLocalPath);
+  oldLocalPath = PathExt.join(root, oldLocalPath);
 
-  const isDir: boolean = oldLocalPath.split('.').length === 1;
+  const isDir: boolean = PathExt.extname(oldLocalPath) === '';
 
   if (isDir) {
     newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
@@ -309,7 +312,7 @@ export const renameS3Objects = async (
     newLocalPath.substring(0, newLocalPath.lastIndexOf('/') + 1) + newFileName;
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
-    newFileName!.split('.')[1],
+    PathExt.extname(PathExt.basename(newFileName)),
     registeredFileTypes
   );
 
@@ -386,12 +389,12 @@ export const copyS3Objects = async (
   registeredFileTypes: IRegisteredFileTypes,
   newBucketName?: string
 ): Promise<Contents.IModel> => {
-  const isDir: boolean = path.split('.').length === 1;
+  const isDir: boolean = PathExt.extname(path) === '';
 
-  path = (root ? root + '/' : '') + path;
-  toDir = root ? root + (toDir ? '/' + toDir : toDir) : toDir;
+  path = PathExt.join(root, path);
+  toDir = PathExt.join(root, toDir);
 
-  name = toDir !== '' ? toDir + '/' + name : name;
+  name = PathExt.join(toDir, name);
   path = isDir ? path + '/' : path;
 
   // list contents of path - contents of directory or one file
@@ -428,7 +431,7 @@ export const copyS3Objects = async (
   }
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
-    name.split('.')[1],
+    PathExt.extname(PathExt.basename(name)),
     registeredFileTypes
   );
 
@@ -441,8 +444,8 @@ export const copyS3Objects = async (
   );
 
   data = {
-    name: name,
-    path: toDir ? toDir + '/' + name : name,
+    name: PathExt.basename(name),
+    path: name,
     last_modified: newFileContents.LastModified!.toISOString(),
     created: new Date().toISOString(),
     content: await newFileContents.Body!.transformToString(),
@@ -464,7 +467,7 @@ export const countS3ObjectNameAppearances = async (
   originalName: string
 ): Promise<number> => {
   let counter: number = 0;
-  path = (root ? root + '/' : '') + (path ? path + '/' : '');
+  path = PathExt.join(root, path);
 
   // count number of name appearances
   const command = new ListObjectsV2Command({
@@ -519,7 +522,6 @@ namespace Private {
     let fileType: string = 'text';
     let fileMimetype: string = 'text/plain';
     let fileFormat: string = 'text';
-    extension = extension ?? '';
 
     if (registeredFileTypes[extension]) {
       fileType = registeredFileTypes[extension].fileType;
@@ -528,7 +530,7 @@ namespace Private {
     }
 
     // the file format for notebooks appears as json, but should be text
-    if (extension === 'ipynb') {
+    if (extension === '.ipynb') {
       fileFormat = 'text';
     }
 
@@ -573,30 +575,28 @@ namespace Private {
     await s3Client.send(
       new CopyObjectCommand({
         Bucket: newBucketName ? newBucketName : bucketName,
-        CopySource: bucketName + '/' + oldPath + remainingFilePath,
-        Key: newPath + remainingFilePath
+        CopySource: PathExt.join(bucketName, oldPath, remainingFilePath),
+        Key: PathExt.join(newPath, remainingFilePath)
       })
     );
   }
 
   export function formatBody(
-    // options: Partial<Contents.IModel>,
+    options: Partial<Contents.IModel>,
     content: any,
     fileFormat: string,
     fileType: string,
     fileMimeType: string
   ) {
     let body: string | Blob;
-    if (fileFormat === 'json') {
-      // TO DO: fileformat != options.format ? options.format === 'json'
-      body = JSON.stringify(content, null, 2); // options?.content
+    if (options.format === 'json') {
+      body = JSON.stringify(options.content, null, 2);
     } else if (
-      // options.format === 'base64' &&
-      fileFormat === 'base64' ||
-      fileType === 'PDF'
+      options.format === 'base64' &&
+      (fileFormat === 'base64' || fileType === 'PDF')
     ) {
       // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket
-      const byteCharacters = atob(content);
+      const byteCharacters = atob(options.content);
       const byteArrays = [];
 
       for (let offset = 0; offset < byteCharacters.length; offset += 512) {
@@ -611,7 +611,7 @@ namespace Private {
 
       body = new Blob(byteArrays, { type: fileMimeType });
     } else {
-      body = content;
+      body = options.content;
     }
     return body;
   }
