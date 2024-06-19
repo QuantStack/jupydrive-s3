@@ -315,7 +315,6 @@ export class Drive implements Contents.IDrive {
         name,
         options.path ? PathExt.join(options.path, name) : name,
         '', // create new file with empty body,
-        options,
         this.registeredFileTypes
       );
     } else {
@@ -523,8 +522,8 @@ export class Drive implements Contents.IDrive {
       fileName,
       localPath,
       options.content,
-      options,
-      this._registeredFileTypes
+      this._registeredFileTypes,
+      options
     );
 
     this._fileChanged.emit({

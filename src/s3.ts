@@ -222,14 +222,16 @@ export const getS3FileContents = async (
 /**
  * Create a new file or directory or save a file.
  *
+ * When saving a file, the options parameter is needed.
+ *
  * @param s3Client: The S3Client used to send commands.
  * @param bucketName: The bucket name.
  * @param root: The path to the directory acting as root.
  * @param name: The name of file or directory to be created or saved.
  * @param path: The path to to file or directory.
  * @param body: The new contents of the file.
- * @param options: The optional parameteres of saving a file or directory.
  * @param registeredFileTypes: The list containing all registered file types.
+ * @param options: The optional parameteres of saving a file or directory (optional).
  *
  * @returns A promise which resolves with the new file or directory contents model.
  */
@@ -240,8 +242,8 @@ export const createS3Object = async (
   name: string,
   path: string,
   body: string | Blob,
-  options: Partial<Contents.IModel>,
-  registeredFileTypes: IRegisteredFileTypes
+  registeredFileTypes: IRegisteredFileTypes,
+  options?: Partial<Contents.IModel>
 ): Promise<Contents.IModel> => {
   path = PathExt.join(root, path);
 
@@ -250,27 +252,19 @@ export const createS3Object = async (
     registeredFileTypes
   );
 
+  // checking if we are creating a new file or saving an existing one (overwrriting)
+  if (options) {
+    body = Private.formatBody(options, fileFormat, fileType, fileMimeType);
+  }
+
   await s3Client.send(
     new PutObjectCommand({
       Bucket: bucketName,
       Key: path + (PathExt.extname(name) === '' ? '/' : ''),
       Body: body,
-      CacheControl: body === '' ? undefined : 'no-cache'
+      CacheControl: options ? 'no-cache' : undefined
     })
   );
-
-  console.log(options);
-  // checking if we are creating a new file or saving an existing one (overwrriting)
-  if (!('ext' in options)) {
-    console.log('ext in options exists!');
-    body = Private.formatBody(
-      options,
-      body,
-      fileFormat,
-      fileType,
-      fileMimeType
-    );
-  }
 
   data = {
     name: name,
@@ -690,8 +684,7 @@ namespace Private {
   /**
    * Helping function used for formatting the body of files.
    *
-   * @param options: The optional parameteres of saving a file or directory.
-   * @param content: The content to be formatted.
+   * @param options: The parameteres for saving a file.
    * @param fileFormat: The registered file format.
    * @param fileType: The registered file type.
    * @param fileMimeType: The registered file mimetype.
@@ -700,7 +693,6 @@ namespace Private {
    */
   export function formatBody(
     options: Partial<Contents.IModel>,
-    content: any,
     fileFormat: string,
     fileType: string,
     fileMimeType: string
