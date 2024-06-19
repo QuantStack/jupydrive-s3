@@ -476,7 +476,6 @@ export class Drive implements Contents.IDrive {
       originalName = PathExt.basename(localPath);
       // eliminate file extension
       fileExtension = PathExt.extname(originalName);
-      //originalName.split('.')[originalName.split('.').length - 1];
       originalName =
         originalName.split('.')[originalName.split('.').length - 2];
     }
