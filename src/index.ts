@@ -137,9 +137,6 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
 
     app.serviceManager.contents.addDrive(S3Drive);
 
-    // save drive name to the persistent state database
-    // state.save(S3Drive.name, { bucket: S3Drive.name });
-
     // get registered file types
     S3Drive.getRegisteredFileTypes(app);
 
@@ -157,12 +154,9 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
       .then(() => state.fetch(id))
       .then(value => {
         if (value) {
-          console.log('Read from state value: ', value);
           const bucket = (value as ReadonlyPartialJSONObject)[
             'bucket'
           ] as string;
-
-          console.log('bucket: ', bucket);
 
           // if value is stored, change bucket name
           S3Drive.name = bucket;
@@ -416,10 +410,6 @@ namespace Private {
             drive.root = result.value[1];
             app.serviceManager.contents.addDrive(drive);
 
-            console.log(
-              'save new drive name to persistent database: ',
-              drive.name
-            );
             // saving the new drive name to the persistent state database
             state.save(id, { bucket: drive.name });
           }
