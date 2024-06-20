@@ -8597,6 +8597,7 @@ __metadata:
     "@aws-sdk/s3-request-presigner": ^3.511.0
     "@jupyterlab/application": ^4.0.0
     "@jupyterlab/builder": ^4.0.0
+    "@jupyterlab/statedb": ^4.2.2
     "@jupyterlab/testutils": ^4.0.0
     "@lumino/coreutils": 2.1.2
     "@types/jest": ^29.2.0

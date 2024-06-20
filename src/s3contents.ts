@@ -114,7 +114,7 @@ export class Drive implements Contents.IDrive {
   set name(name: string) {
     this._name = name;
 
-     // if name of drive is changed, the filebrowser needs to refresh its contents
+    // if name of drive is changed, the filebrowser needs to refresh its contents
     // as we are switching to another bucket
     this._fileChanged.emit({
       type: 'new',

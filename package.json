@@ -59,6 +59,7 @@
         "@aws-sdk/client-s3": "^3.511.0",
         "@aws-sdk/s3-request-presigner": "^3.511.0",
         "@jupyterlab/application": "^4.0.0",
+        "@jupyterlab/statedb": "^4.2.2",
         "@lumino/coreutils": "2.1.2"
     },
     "devDependencies": {
