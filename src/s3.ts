@@ -583,18 +583,11 @@ export const countS3ObjectNameAppearances = async (
 
     if (Contents) {
       Contents.forEach(c => {
-        // check if we are dealing with a directory
-        if (c.Key![c.Key!.length - 1] === '/') {
-          c.Key! = c.Key!.substring(0, c.Key!.length - 1);
-        }
-        // check if the name of the file or directory matches the original name
+        const fileName = c
+          .Key!.replace((root ? root + '/' : '') + (path ? path + '/' : ''), '')
+          .split('/')[0];
         if (
-          c
-            .Key!.substring(
-              c.Key!.lastIndexOf('/') + 1,
-              c.Key!.lastIndexOf('/') + 1 + originalName.length
-            )
-            .includes(originalName)
+          fileName.substring(0, originalName.length + 1).includes(originalName)
         ) {
           counter += 1;
         }

@@ -488,7 +488,7 @@ export class Drive implements Contents.IDrive {
       originalName
     );
     let newName = counter ? originalName + counter : originalName;
-    newName = isDir ? newName + '/' : newName + '.' + fileExtension;
+    newName = isDir ? newName + '/' : newName + fileExtension;
 
     return newName;
   }
