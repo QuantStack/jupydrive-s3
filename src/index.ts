@@ -263,10 +263,10 @@ namespace Private {
     const existingLabel = document.createElement('label');
     existingLabel.textContent = 'Current Drive: ' + oldDriveName;
 
-    const nameTitle = document.createElement('label');
-    nameTitle.textContent = 'Switch to another Drive';
-    nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
-    const name = document.createElement('input');
+    const bucket = document.createElement('label');
+    bucket.textContent = 'Switch to another Drive';
+    bucket.className = SWITCH_DRIVE_TITLE_CLASS;
+    const bucketName = document.createElement('input');
 
     const root = document.createElement('label');
     root.textContent = 'with root';
@@ -274,8 +274,8 @@ namespace Private {
     const rootPath = document.createElement('input');
 
     body.appendChild(existingLabel);
-    body.appendChild(nameTitle);
-    body.appendChild(name);
+    body.appendChild(bucket);
+    body.appendChild(bucketName);
     body.appendChild(root);
     body.appendChild(rootPath);
     return body;
@@ -287,20 +287,20 @@ namespace Private {
   const createCopyToAnotherBucketNode = (): HTMLElement => {
     const body = document.createElement('div');
 
-    const nameTitle = document.createElement('label');
-    nameTitle.textContent = 'Copy to another Bucket';
-    nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
-    const name = document.createElement('input');
+    const bucket = document.createElement('label');
+    bucket.textContent = 'Copy to another Bucket';
+    bucket.className = SWITCH_DRIVE_TITLE_CLASS;
+    const bucketName = document.createElement('input');
 
-    const location = document.createElement('label');
-    location.textContent = 'Location within the Bucket';
-    location.className = SWITCH_DRIVE_TITLE_CLASS;
-    const locationName = document.createElement('input');
+    const root = document.createElement('label');
+    root.textContent = 'Location within the Bucket';
+    root.className = SWITCH_DRIVE_TITLE_CLASS;
+    const rootPath = document.createElement('input');
 
-    body.appendChild(nameTitle);
-    body.appendChild(name);
-    body.appendChild(location);
-    body.appendChild(locationName);
+    body.appendChild(bucket);
+    body.appendChild(bucketName);
+    body.appendChild(root);
+    body.appendChild(rootPath);
     return body;
   };
 
@@ -358,23 +358,23 @@ namespace Private {
 
     protected onAfterAttach(): void {
       this.addClass(FILE_DIALOG_CLASS);
-      const name = this.inputNameNode.value;
-      this.inputNameNode.setSelectionRange(0, name.length);
-      const root = this.inputRootNode.value;
-      this.inputRootNode.setSelectionRange(0, root.length);
+      const bucket = this.bucketInput.value;
+      this.bucketInput.setSelectionRange(0, bucket.length);
+      const root = this.rootInput.value;
+      this.rootInput.setSelectionRange(0, root.length);
     }
 
     /**
      * Get the input text node for bucket name.
      */
-    get inputNameNode(): HTMLInputElement {
+    get bucketInput(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
     }
 
     /**
      * Get the input text node for path to root.
      */
-    get inputRootNode(): HTMLInputElement {
+    get rootInput(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[1] as HTMLInputElement;
     }
 
@@ -382,7 +382,7 @@ namespace Private {
      * Get the value of the widget.
      */
     getValue(): string[] {
-      return [this.inputNameNode.value, this.inputRootNode.value];
+      return [this.bucketInput.value, this.rootInput.value];
     }
   }
 
