@@ -157,9 +157,11 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
           const bucket = (value as ReadonlyPartialJSONObject)[
             'bucket'
           ] as string;
+          const root = (value as ReadonlyPartialJSONObject)['root'] as string;
 
           // if value is stored, change bucket name
           S3Drive.name = bucket;
+          S3Drive.root = root;
           app.serviceManager.contents.addDrive(S3Drive);
         }
       });
@@ -411,7 +413,7 @@ namespace Private {
             app.serviceManager.contents.addDrive(drive);
 
             // saving the new drive name to the persistent state database
-            state.save(id, { bucket: drive.name });
+            state.save(id, { bucket: result.value[0], root: result.value[1] });
           }
         });
       },
