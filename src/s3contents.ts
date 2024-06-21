@@ -106,6 +106,14 @@ export class Drive implements Contents.IDrive {
    */
   set name(name: string) {
     this._name = name;
+
+    // if name of drive is changed, the filebrowser needs to refresh its contents
+    // as we are switching to another bucket
+    this._fileChanged.emit({
+      type: 'new',
+      oldValue: null,
+      newValue: { path: '' }
+    });
   }
 
   /**
@@ -301,8 +309,9 @@ export class Drive implements Contents.IDrive {
     const old_data = await listS3Contents(
       this._s3Client,
       this._name,
-      '', // we consider the root undefined in order to retrieve the complete list of contents
-      this.registeredFileTypes
+      this._root,
+      this.registeredFileTypes,
+      options.path
     );
 
     if (options.type !== undefined) {

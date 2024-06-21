@@ -4,19 +4,21 @@ import {
   IRouter,
   JupyterFrontEnd
 } from '@jupyterlab/application';
-import { showDialog, Dialog } from '@jupyterlab/apputils';
+import {
+  createToolbarFactory,
+  IToolbarWidgetRegistry,
+  setToolbar,
+  showDialog,
+  Dialog
+} from '@jupyterlab/apputils';
 import {
   IDefaultFileBrowser,
   IFileBrowserFactory,
   FileBrowser,
   Uploader
 } from '@jupyterlab/filebrowser';
+import { IStateDB } from '@jupyterlab/statedb';
 
-import {
-  createToolbarFactory,
-  IToolbarWidgetRegistry,
-  setToolbar
-} from '@jupyterlab/apputils';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator } from '@jupyterlab/translation';
 
@@ -26,7 +28,7 @@ import { Drive } from './s3contents';
 
 import { DriveIcon } from './icons';
 import { FilenameSearcher, IScore } from '@jupyterlab/ui-components';
-import { Token } from '@lumino/coreutils';
+import { ReadonlyPartialJSONObject, Token } from '@lumino/coreutils';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
 
 /**
@@ -55,6 +57,11 @@ const FILE_DIALOG_CLASS = 'jp-FileDialog';
  * The class name added for the new drive label in the switch drive dialog.
  */
 const SWITCH_DRIVE_TITLE_CLASS = 'jp-new-drive-title';
+
+/**
+ * The ID used for saving the drive name to the persistent state databse.
+ */
+const id = 'jupydrive-s3:drive-name-id';
 
 /**
  * A promise that resolves to S3 authentication credentials.
@@ -108,12 +115,13 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   id: 'jupydrive-s3:default-file-browser',
   description: 'The default file browser factory provider',
   provides: IDefaultFileBrowser,
-  requires: [IFileBrowserFactory, IS3Auth],
+  requires: [IFileBrowserFactory, IS3Auth, IStateDB],
   optional: [IRouter, JupyterFrontEnd.ITreeResolver, ILabShell],
   activate: async (
     app: JupyterFrontEnd,
     fileBrowserFactory: IFileBrowserFactory,
     s3auth: IS3Auth,
+    state: IStateDB,
     router: IRouter | null,
     tree: JupyterFrontEnd.ITreeResolver | null,
     labShell: ILabShell | null
@@ -142,7 +150,23 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
       }
     );
 
-    Private.addCommands(app, S3Drive, fileBrowserFactory);
+    app.restored
+      .then(() => state.fetch(id))
+      .then(value => {
+        if (value) {
+          const bucket = (value as ReadonlyPartialJSONObject)[
+            'bucket'
+          ] as string;
+          const root = (value as ReadonlyPartialJSONObject)['root'] as string;
+
+          // if value is stored, change bucket name
+          S3Drive.name = bucket;
+          S3Drive.root = root;
+          app.serviceManager.contents.addDrive(S3Drive);
+        }
+      });
+
+    Private.addCommands(app, S3Drive, fileBrowserFactory, state);
 
     void Private.restoreBrowser(
       defaultBrowser,
@@ -198,7 +222,7 @@ const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
             });
           },
           useFuzzyFilter: true,
-          placeholder: 'Filter files by namesss',
+          placeholder: 'Filter files by names',
           forceRefresh: true
         });
         searcher.addClass(FILTERBOX_CLASS);
@@ -241,10 +265,10 @@ namespace Private {
     const existingLabel = document.createElement('label');
     existingLabel.textContent = 'Current Drive: ' + oldDriveName;
 
-    const nameTitle = document.createElement('label');
-    nameTitle.textContent = 'Switch to another Drive';
-    nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
-    const name = document.createElement('input');
+    const bucket = document.createElement('label');
+    bucket.textContent = 'Switch to another Drive';
+    bucket.className = SWITCH_DRIVE_TITLE_CLASS;
+    const bucketName = document.createElement('input');
 
     const root = document.createElement('label');
     root.textContent = 'with root';
@@ -252,8 +276,8 @@ namespace Private {
     const rootPath = document.createElement('input');
 
     body.appendChild(existingLabel);
-    body.appendChild(nameTitle);
-    body.appendChild(name);
+    body.appendChild(bucket);
+    body.appendChild(bucketName);
     body.appendChild(root);
     body.appendChild(rootPath);
     return body;
@@ -265,20 +289,20 @@ namespace Private {
   const createCopyToAnotherBucketNode = (): HTMLElement => {
     const body = document.createElement('div');
 
-    const nameTitle = document.createElement('label');
-    nameTitle.textContent = 'Copy to another Bucket';
-    nameTitle.className = SWITCH_DRIVE_TITLE_CLASS;
-    const name = document.createElement('input');
+    const bucket = document.createElement('label');
+    bucket.textContent = 'Copy to another Bucket';
+    bucket.className = SWITCH_DRIVE_TITLE_CLASS;
+    const bucketName = document.createElement('input');
 
-    const location = document.createElement('label');
-    location.textContent = 'Location within the Bucket';
-    location.className = SWITCH_DRIVE_TITLE_CLASS;
-    const locationName = document.createElement('input');
+    const root = document.createElement('label');
+    root.textContent = 'Location within the Bucket';
+    root.className = SWITCH_DRIVE_TITLE_CLASS;
+    const rootPath = document.createElement('input');
 
-    body.appendChild(nameTitle);
-    body.appendChild(name);
-    body.appendChild(location);
-    body.appendChild(locationName);
+    body.appendChild(bucket);
+    body.appendChild(bucketName);
+    body.appendChild(root);
+    body.appendChild(rootPath);
     return body;
   };
 
@@ -336,23 +360,23 @@ namespace Private {
 
     protected onAfterAttach(): void {
       this.addClass(FILE_DIALOG_CLASS);
-      const name = this.inputNameNode.value;
-      this.inputNameNode.setSelectionRange(0, name.length);
-      const root = this.inputRootNode.value;
-      this.inputRootNode.setSelectionRange(0, root.length);
+      const bucket = this.bucketInput.value;
+      this.bucketInput.setSelectionRange(0, bucket.length);
+      const root = this.rootInput.value;
+      this.rootInput.setSelectionRange(0, root.length);
     }
 
     /**
      * Get the input text node for bucket name.
      */
-    get inputNameNode(): HTMLInputElement {
+    get bucketInput(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[0] as HTMLInputElement;
     }
 
     /**
      * Get the input text node for path to root.
      */
-    get inputRootNode(): HTMLInputElement {
+    get rootInput(): HTMLInputElement {
       return this.node.getElementsByTagName('input')[1] as HTMLInputElement;
     }
 
@@ -360,14 +384,15 @@ namespace Private {
      * Get the value of the widget.
      */
     getValue(): string[] {
-      return [this.inputNameNode.value, this.inputRootNode.value];
+      return [this.bucketInput.value, this.rootInput.value];
     }
   }
 
   export function addCommands(
     app: JupyterFrontEnd,
     drive: Drive,
-    factory: IFileBrowserFactory
+    factory: IFileBrowserFactory,
+    state: IStateDB
   ): void {
     const { tracker } = factory;
     app.commands.addCommand(CommandIDs.openChangeDrive, {
@@ -386,6 +411,9 @@ namespace Private {
             drive.name = result.value[0];
             drive.root = result.value[1];
             app.serviceManager.contents.addDrive(drive);
+
+            // saving the new drive name to the persistent state database
+            state.save(id, { bucket: result.value[0], root: result.value[1] });
           }
         });
       },
