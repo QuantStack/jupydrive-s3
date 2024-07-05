@@ -60,7 +60,7 @@ export class Drive implements Contents.IDrive {
         this._region = region!;
       });
     }
-    this.formatRoot(root).then((root: string) => {
+    this.formatRoot(root ?? '').then((root: string) => {
       this._root = root;
     });
     this._registeredFileTypes = {};
@@ -127,7 +127,7 @@ export class Drive implements Contents.IDrive {
    * The Drive root setter
    */
   set root(root: string) {
-    this.formatRoot(root).then(root => (this._root = root));
+    this.formatRoot(root ?? '').then(root => (this._root = root));
   }
 
   /**
