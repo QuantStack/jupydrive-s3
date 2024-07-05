@@ -82,6 +82,11 @@ By default, the `jlpm build` command generates the source maps for this extensio
 jupyter lab build --minimize=False
 ```
 
+### Local enviroment variables
+Rename the `.env.example` file to `.env` and update it with the values needed for your local configuration. 
+
+Note: Unless configured differently, the `S3` bucket endpoint should follow the format: `https://s3.<bucket-region>.amazonaws.com`.
+
 ### Development uninstall
 
 ```bash
