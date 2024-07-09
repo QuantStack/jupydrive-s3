@@ -484,17 +484,6 @@ namespace Private {
         '.jp-SidePanel .jp-DirListing-content .jp-DirListing-item[data-isDir]',
       rank: 10
     });
-
-    // app.commands.addCommand(CommandIDs.toggleBucketSwitching, {
-    //   label: 'Enable Bucket Switching',
-    //   isToggled: () => !!settings.composite['bucketSwitching'],
-    //   execute: () => {
-    //     settings.set('bucketSwitching', !settings.composite['bucketSwitching']);
-    //     console.log(settings.composite['bucketSwitching'])
-    //     console.log('button toggled, reload!')
-    //     location.reload();
-    //   }
-    // });
   }
 
   /**
