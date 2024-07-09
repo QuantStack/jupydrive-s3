@@ -60,6 +60,7 @@
         "@aws-sdk/s3-request-presigner": "^3.511.0",
         "@jupyterlab/application": "^4.0.0",
         "@jupyterlab/coreutils": "^6.2.2",
+        "@jupyterlab/settingregistry": "^4.2.3",
         "@jupyterlab/statedb": "^4.2.2",
         "@lumino/coreutils": "2.1.2"
     },

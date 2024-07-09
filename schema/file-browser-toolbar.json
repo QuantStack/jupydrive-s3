@@ -2,22 +2,25 @@
   "jupyter.lab.toolbars": {
     "DriveBrowser": [
       {
-        "name": "drive",
-        "command": "drives:open-change-drive-dialog",
+        "name": "switch-drive",
+        "command": "drives:open-switch-drive-dialog",
         "rank": 35
-      },
-      {
-        "name": "new-drive",
-        "command": "drives:open-new-drive-dialog",
-        "rank": 40
       }
     ]
   },
-  "title": "jupydrive-s3:file-browser-toolbar",
+  "jupyter.lab.setting-icon": "jupydrive-s3:drive",
+  "jupyter.lab.setting-icon-label": "Drive Browser",
+  "title": "Jupydrive-s3 Settings",
   "description": "jupydrive-s3 settings.",
   "type": "object",
   "jupyter.lab.transform": true,
   "properties": {
+    "bucketSwitching": {
+      "type": "boolean",
+      "title": "Enable Bucket switching",
+      "description": "This flag enables or disables the bucket switching UI.",
+      "default": false
+    },
     "toolbar": {
       "title": "Drive browser toolbar items",
       "items": {

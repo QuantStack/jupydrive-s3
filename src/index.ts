@@ -36,8 +36,9 @@ import { S3ClientConfig } from '@aws-sdk/client-s3';
  */
 namespace CommandIDs {
   export const openPath = 'filebrowser:open-path';
-  export const openChangeDrive = 'drives:open-change-drive-dialog';
+  export const openSwitchDrive = 'drives:open-switch-drive-dialog';
   export const copyToAnotherBucket = 'drives:copy-to-another-bucket';
+  export const toggleBucketSwitching = 'drives:toggle-bucket-switching-ui';
 }
 
 const FILE_BROWSER_FACTORY = 'DriveBrowser';
@@ -61,7 +62,7 @@ const SWITCH_DRIVE_TITLE_CLASS = 'jp-new-drive-title';
 /**
  * The ID used for saving the drive name to the persistent state databse.
  */
-const id = 'jupydrive-s3:drive-name-id';
+const DRIVE_STATE_ID = 'jupydrive-s3:drive-name-id';
 
 /**
  * A promise that resolves to S3 authentication credentials.
@@ -115,13 +116,14 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   id: 'jupydrive-s3:default-file-browser',
   description: 'The default file browser factory provider',
   provides: IDefaultFileBrowser,
-  requires: [IFileBrowserFactory, IS3Auth, IStateDB],
+  requires: [IFileBrowserFactory, IS3Auth, IStateDB, ISettingRegistry],
   optional: [IRouter, JupyterFrontEnd.ITreeResolver, ILabShell],
   activate: async (
     app: JupyterFrontEnd,
     fileBrowserFactory: IFileBrowserFactory,
     s3auth: IS3Auth,
     state: IStateDB,
+    settings: ISettingRegistry,
     router: IRouter | null,
     tree: JupyterFrontEnd.ITreeResolver | null,
     labShell: ILabShell | null
@@ -150,23 +152,41 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
       }
     );
 
+    function loadSetting(setting: ISettingRegistry.ISettings): boolean {
+      // Read the settings and convert to the correct type
+      const bucketSwitching = setting.get('bucketSwitching')
+        .composite as boolean;
+      return bucketSwitching;
+    }
+
+    // Wait for the application to be restored and for the
+    // settings and persistent state database to be loaded
     app.restored
-      .then(() => state.fetch(id))
-      .then(value => {
+      .then(() =>
+        Promise.all([
+          state.fetch(DRIVE_STATE_ID),
+          settings.load(toolbarFileBrowser.id)
+        ])
+      )
+      .then(([value, setting]) => {
         if (value) {
           const bucket = (value as ReadonlyPartialJSONObject)[
             'bucket'
           ] as string;
           const root = (value as ReadonlyPartialJSONObject)['root'] as string;
 
-          // if value is stored, change bucket name
+          // if values are stored, change bucket name and root
           S3Drive.name = bucket;
           S3Drive.root = root;
           app.serviceManager.contents.addDrive(S3Drive);
         }
-      });
 
-    Private.addCommands(app, S3Drive, fileBrowserFactory, state);
+        // Listen for the plugin setting changes using Signal.
+        setting.changed.connect(loadSetting);
+
+        // adding commands
+        Private.addCommands(app, S3Drive, fileBrowserFactory, state, setting);
+      });
 
     void Private.restoreBrowser(
       defaultBrowser,
@@ -392,10 +412,15 @@ namespace Private {
     app: JupyterFrontEnd,
     drive: Drive,
     factory: IFileBrowserFactory,
-    state: IStateDB
+    state: IStateDB,
+    settings: ISettingRegistry.ISettings
   ): void {
     const { tracker } = factory;
-    app.commands.addCommand(CommandIDs.openChangeDrive, {
+
+    app.commands.addCommand(CommandIDs.openSwitchDrive, {
+      isVisible: () => {
+        return (settings.get('bucketSwitching').composite as boolean) ?? false;
+      },
       execute: async () => {
         return showDialog({
           body: new Private.SwitchDriveHandler(drive.name),
@@ -413,7 +438,10 @@ namespace Private {
             app.serviceManager.contents.addDrive(drive);
 
             // saving the new drive name to the persistent state database
-            state.save(id, { bucket: result.value[0], root: result.value[1] });
+            state.save(DRIVE_STATE_ID, {
+              bucket: result.value[0],
+              root: result.value[1]
+            });
           }
         });
       },
