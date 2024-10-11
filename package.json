@@ -58,15 +58,15 @@
     "dependencies": {
         "@aws-sdk/client-s3": "^3.511.0",
         "@aws-sdk/s3-request-presigner": "^3.511.0",
-        "@jupyterlab/application": "^4.0.0",
-        "@jupyterlab/coreutils": "^6.2.2",
-        "@jupyterlab/settingregistry": "^4.2.3",
-        "@jupyterlab/statedb": "^4.2.2",
+        "@jupyterlab/application": "^4.2.5",
+        "@jupyterlab/coreutils": "^6.2.5",
+        "@jupyterlab/settingregistry": "^4.2.5",
+        "@jupyterlab/statedb": "^4.2.5",
         "@lumino/coreutils": "^2.1.2"
     },
     "devDependencies": {
-        "@jupyterlab/builder": "^4.0.0",
-        "@jupyterlab/testutils": "^4.0.0",
+        "@jupyterlab/builder": "^4.2.5",
+        "@jupyterlab/testutils": "^4.2.5",
         "@types/jest": "^29.2.0",
         "@types/json-schema": "^7.0.11",
         "@types/react": "^18.0.26",
