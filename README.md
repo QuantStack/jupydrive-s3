@@ -26,7 +26,7 @@ More information about `CORS` [here](https://docs.aws.amazon.com/AmazonS3/latest
 
 ## Requirements
 
-- JupyterLab >= 4.0.0
+- JupyterLab >= 4.2.5
 
 ## Install
 
