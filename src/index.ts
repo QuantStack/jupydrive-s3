@@ -39,6 +39,7 @@ namespace CommandIDs {
   export const openSwitchDrive = 'drives:open-switch-drive-dialog';
   export const copyToAnotherBucket = 'drives:copy-to-another-bucket';
   export const toggleBucketSwitching = 'drives:toggle-bucket-switching-ui';
+  export const toggleBrowser = 'filebrowser:toggle-main';
 }
 
 const FILE_BROWSER_FACTORY = 'DriveBrowser';
@@ -158,6 +159,28 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
         .composite as boolean;
       return bucketSwitching;
     }
+
+    // Set attributes when adding the browser to the UI
+    defaultBrowser.node.setAttribute('role', 'region');
+    defaultBrowser.node.setAttribute('aria-label', 'Drive Browser Section');
+    defaultBrowser.title.icon = DriveIcon;
+
+    // Show the current file browser shortcut in its title.
+    const updateBrowserTitle = () => {
+      const binding = app.commands.keyBindings.find(
+        b => b.command === CommandIDs.toggleBrowser
+      );
+      if (binding) {
+        const ks = binding.keys.map(CommandRegistry.formatKeystroke).join(', ');
+        defaultBrowser.title.caption = 'Drive Browser (' + ks + ')';
+      } else {
+        defaultBrowser.title.caption = 'Drive Browser';
+      }
+    };
+    updateBrowserTitle();
+    app.commands.keyBindingChanged.connect(() => {
+      updateBrowserTitle();
+    });
 
     // Wait for the application to be restored and for the
     // settings and persistent state database to be loaded
