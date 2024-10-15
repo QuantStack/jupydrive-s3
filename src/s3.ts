@@ -214,6 +214,7 @@ export const getS3FileContents = async (
       writable: true,
       type: fileType
     };
+    console.log('S3CONTENTS get file contents finished: ', fileContents);
   }
 
   return data;
@@ -265,6 +266,7 @@ export const createS3Object = async (
       CacheControl: options ? 'no-cache' : undefined
     })
   );
+  console.log('S3CONTENTS save finished');
 
   data = {
     name: name,
@@ -312,9 +314,9 @@ export const deleteS3Objects = async (
 
     if (Contents) {
       await Promise.all(
-        Contents.map(c => {
+        Contents.map(async c => {
           // delete each file with given path
-          Private.deleteFile(s3Client, bucketName, c.Key!);
+          await Private.deleteFile(s3Client, bucketName, c.Key!);
         })
       );
     }
@@ -323,6 +325,7 @@ export const deleteS3Objects = async (
     }
     command.input.ContinuationToken = NextContinuationToken;
   }
+  console.log('S3CONTENTS DELETE multiple objects finished');
 };
 
 /**
@@ -647,6 +650,7 @@ namespace Private {
         Key: filePath
       })
     );
+    console.log('S3CONTENTS delete file finished');
   }
 
   /**

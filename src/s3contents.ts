@@ -255,6 +255,7 @@ export class Drive implements Contents.IDrive {
     path: string,
     options?: Contents.IFetchOptions
   ): Promise<Contents.IModel> {
+    console.log('GET: ', path);
     path = path.replace(this._name + '/', '');
 
     // getting the list of files from the root
@@ -291,6 +292,7 @@ export class Drive implements Contents.IDrive {
     }
 
     Contents.validateContentsModel(data);
+    console.log('GET validate data finish: ', data);
     return data;
   }
 
@@ -305,6 +307,7 @@ export class Drive implements Contents.IDrive {
   async newUntitled(
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
+    console.log('NEW UNTITLED: ', options);
     // get current list of contents of drive
     const old_data = await listS3Contents(
       this._s3Client,
@@ -331,12 +334,13 @@ export class Drive implements Contents.IDrive {
     }
 
     Contents.validateContentsModel(data);
+    console.log('NEW UNTITLED validate data: ', data);
     this._fileChanged.emit({
       type: 'new',
       oldValue: null,
       newValue: data
     });
-
+    console.log('NEW UNTITLED file chnanged signal emitted finish!');
     return data;
   }
 
@@ -399,13 +403,16 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves when the file is deleted.
    */
   async delete(localPath: string): Promise<void> {
+    console.log('DELETE: ', localPath);
     await deleteS3Objects(this._s3Client, this._name, this._root, localPath);
 
+    console.log('DELETE finish!');
     this._fileChanged.emit({
       type: 'delete',
       oldValue: { path: localPath },
       newValue: { path: undefined }
     });
+    console.log('DELETE file changed signal finished!');
   }
 
   /**
@@ -426,6 +433,7 @@ export class Drive implements Contents.IDrive {
     newLocalPath: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
+    console.log('RENAME: ', oldLocalPath, newLocalPath);
     let newFileName = PathExt.basename(newLocalPath);
 
     await checkS3Object(this._s3Client, this._name, this._root, newLocalPath)
@@ -451,12 +459,14 @@ export class Drive implements Contents.IDrive {
         );
       });
 
+    Contents.validateContentsModel(data);
+    console.log('RENAME validate contents finish: ', data);
     this._fileChanged.emit({
       type: 'rename',
       oldValue: { path: oldLocalPath },
       newValue: data
     });
-    Contents.validateContentsModel(data);
+    console.log('RENAME file changed signal emitted!');
     return data;
   }
 
@@ -521,6 +531,7 @@ export class Drive implements Contents.IDrive {
     localPath: string,
     options: Partial<Contents.IModel> = {}
   ): Promise<Contents.IModel> {
+    console.log('SAVE: ', localPath, options);
     const fileName = PathExt.basename(localPath);
 
     data = await createS3Object(
@@ -534,12 +545,14 @@ export class Drive implements Contents.IDrive {
       options
     );
 
+    Contents.validateContentsModel(data);
+    console.log('SAVE finish validate contents: ', data);
     this._fileChanged.emit({
       type: 'save',
       oldValue: null,
       newValue: data
     });
-    Contents.validateContentsModel(data);
+    console.log('SAVE file changed signal emitted');
     return data;
   }
 
@@ -592,6 +605,7 @@ export class Drive implements Contents.IDrive {
     toDir: string,
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
+    console.log('COPY: ', path, toDir, options);
     // construct new file or directory name for the copy
     const newFileName = await this.incrementCopyName(path, this._name);
 
@@ -605,12 +619,14 @@ export class Drive implements Contents.IDrive {
       this._registeredFileTypes
     );
 
+    Contents.validateContentsModel(data);
+    console.log('COPY finished validate contents: ', data);
     this._fileChanged.emit({
       type: 'new',
       oldValue: null,
       newValue: data
     });
-    Contents.validateContentsModel(data);
+    console.log('COPY file changed signal emitted finished');
     return data;
   }
 
