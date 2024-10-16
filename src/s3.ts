@@ -492,12 +492,12 @@ export const copyS3Objects = async (
   newBucketName?: string
 ): Promise<Contents.IModel> => {
   const isDir: boolean = PathExt.extname(path) === '';
+  let suffix: string = '';
 
   path = PathExt.join(root, path);
   toDir = PathExt.join(root, toDir);
-
   name = PathExt.join(toDir, name);
-  path = isDir ? path + '/' : path;
+  path = path + (isDir ? '/' : '');
 
   // list contents of path - contents of directory or one file
   const command = new ListObjectsV2Command({
@@ -513,6 +513,9 @@ export const copyS3Objects = async (
 
     if (Contents) {
       const promises = Contents.map(c => {
+        if (!suffix && c.Key!.search('/.emptyFolderPlaceholder') !== -1) {
+          suffix = '.emptyFolderPlaceholder';
+        }
         const remainingFilePath = c.Key!.substring(path.length);
         // copy each file from old directory to new location
         return Private.copyFile(
@@ -541,7 +544,7 @@ export const copyS3Objects = async (
   const newFileContents = await s3Client.send(
     new GetObjectCommand({
       Bucket: newBucketName ?? bucketName,
-      Key: name
+      Key: name + (suffix ? suffix : '')
     })
   );
 
