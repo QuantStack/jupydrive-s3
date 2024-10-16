@@ -255,7 +255,7 @@ export class Drive implements Contents.IDrive {
     path: string,
     options?: Contents.IFetchOptions
   ): Promise<Contents.IModel> {
-    console.log('GET: ', path);
+    // console.log('GET: ', path);
     path = path.replace(this._name + '/', '');
 
     // getting the list of files from the root
@@ -268,6 +268,7 @@ export class Drive implements Contents.IDrive {
       );
     } else {
       const currentPath = PathExt.basename(path);
+      console.log('GET LIST FOLDER: ', currentPath);
 
       // listing contents of a folder
       if (PathExt.extname(currentPath) === '') {
@@ -281,6 +282,7 @@ export class Drive implements Contents.IDrive {
       }
       // getting the contents of a specific file
       else {
+        console.log('GET file contents: ', path);
         data = await getS3FileContents(
           this._s3Client,
           this._name,
@@ -288,11 +290,12 @@ export class Drive implements Contents.IDrive {
           path,
           this.registeredFileTypes
         );
+        console.log('GET validate data finish: ', data);
       }
     }
 
     Contents.validateContentsModel(data);
-    console.log('GET validate data finish: ', data);
+    // console.log('GET validate data finish: ', data);
     return data;
   }
 

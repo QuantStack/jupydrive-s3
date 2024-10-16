@@ -85,12 +85,19 @@ export const listS3Contents = async (
   path?: string
 ): Promise<Contents.IModel> => {
   const fileList: IContentsList = {};
+  const prefix = path ? PathExt.join(root, path) : root;
 
   // listing contents of folder
   const command = new ListObjectsV2Command({
     Bucket: bucketName,
-    Prefix: path ? PathExt.join(root, path) : root
+    Prefix: prefix + (prefix ? '/' : '')
   });
+  console.log(
+    'S3CONTENTS LIST FOLDER, path: ',
+    path ? PathExt.join(root, path) : root,
+    ' with root: ',
+    root
+  );
 
   let isTruncated: boolean | undefined = true;
 
@@ -99,6 +106,7 @@ export const listS3Contents = async (
       await s3Client.send(command);
 
     if (Contents) {
+      console.log('S3CONTENTS LIST CONTENTS: ', Contents);
       Contents.forEach(c => {
         // check if we are dealing with the files inside a subfolder
         if (
@@ -451,6 +459,8 @@ export const renameS3Objects = async (
     }
     command.input.ContinuationToken = NextContinuationToken;
   }
+
+  console.log('S3CONTENTS rename objects finish');
 
   return data;
 };
