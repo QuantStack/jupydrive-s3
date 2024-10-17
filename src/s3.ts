@@ -260,7 +260,8 @@ export const createS3Object = async (
   }
   let lastModified;
 
-  await s3Client.send(
+  await s3Client
+    .send(
       new PutObjectCommand({
         Bucket: bucketName,
         Key: path + (PathExt.extname(name) === '' ? '/' : ''),

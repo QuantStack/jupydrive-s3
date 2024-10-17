@@ -444,7 +444,9 @@ export class Drive implements Contents.IDrive {
       })
       .catch(() => {
         // function throws error as the file name doesn't exist
-        console.log("Name doesn't exist!");
+        console.log(
+          "Name doesn't already exist, so it can be used to rename object."
+        );
       })
       .finally(async () => {
         // once the name has been incremented if needed, proceed with the renaming
