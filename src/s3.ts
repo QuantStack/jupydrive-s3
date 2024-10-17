@@ -92,12 +92,6 @@ export const listS3Contents = async (
     Bucket: bucketName,
     Prefix: prefix + (prefix ? '/' : '')
   });
-  console.log(
-    'S3CONTENTS LIST FOLDER, path: ',
-    path ? PathExt.join(root, path) : root,
-    ' with root: ',
-    root
-  );
 
   let isTruncated: boolean | undefined = true;
 
@@ -106,7 +100,6 @@ export const listS3Contents = async (
       await s3Client.send(command);
 
     if (Contents) {
-      console.log('S3CONTENTS LIST CONTENTS: ', Contents);
       Contents.forEach(c => {
         // check if we are dealing with the files inside a subfolder
         if (
@@ -265,22 +258,36 @@ export const createS3Object = async (
   if (options) {
     body = Private.formatBody(options, fileFormat, fileType, fileMimeType);
   }
+  let lastModified;
 
   await s3Client.send(
-    new PutObjectCommand({
-      Bucket: bucketName,
-      Key: path + (PathExt.extname(name) === '' ? '/' : ''),
-      Body: body,
-      CacheControl: options ? 'no-cache' : undefined
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: path + (PathExt.extname(name) === '' ? '/' : ''),
+        Body: body,
+        CacheControl: options ? 'no-cache' : undefined
+      })
+    )
+    .then(async () => {
+      console.log('S3CONTENTS save finished');
+      const newFileInfo = await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: bucketName,
+          Key: path + (PathExt.extname(name) === '' ? '/' : '')
+        })
+      );
+      console.log('S3CONTENTS save head: ', newFileInfo);
+      lastModified = newFileInfo.LastModified?.toISOString();
     })
-  );
-  console.log('S3CONTENTS save finished');
+    .catch(error => {
+      console.error('Failed saving or creating the S3 object: ', error);
+    });
 
   data = {
     name: name,
     path: PathExt.join(path, name),
-    last_modified: new Date().toISOString(),
-    created: new Date().toISOString(),
+    last_modified: lastModified ?? new Date().toISOString(),
+    created: lastModified ?? new Date().toISOString(),
     content: path.split('.').length === 1 ? [] : body,
     format: fileFormat as Contents.FileFormat,
     mimetype: fileMimeType,
