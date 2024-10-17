@@ -421,28 +421,14 @@ export const renameS3Objects = async (
       await s3Client.send(command);
 
     if (Contents) {
-      // retrieve information of file or directory
-      const fileContents = await s3Client.send(
+      // retrieve content of file or directory
+      const oldFileContents = await s3Client.send(
         new GetObjectCommand({
           Bucket: bucketName,
           Key: Contents[0].Key!
         })
       );
-
-      const body = await fileContents.Body?.transformToString();
-
-      data = {
-        name: newFileName,
-        path: newLocalPath,
-        last_modified: fileContents.LastModified!.toISOString(),
-        created: '',
-        content: body ? body : [],
-        format: fileFormat as Contents.FileFormat,
-        mimetype: fileMimeType,
-        size: fileContents.ContentLength!,
-        writable: true,
-        type: fileType
-      };
+      const body = await oldFileContents.Body?.transformToString();
 
       const promises = Contents.map(async c => {
         const remainingFilePath = c.Key!.substring(oldLocalPath.length);
@@ -461,6 +447,29 @@ export const renameS3Objects = async (
         );
       });
       await Promise.all(promises);
+
+      // retrieve last modified time for new file, does not apply to remaming directory
+      const newFileMetadata = await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: bucketName,
+          Key: newLocalPath
+        })
+      );
+
+      data = {
+        name: newFileName,
+        path: newLocalPath,
+        last_modified:
+          newFileMetadata.LastModified!.toISOString() ??
+          new Date().toISOString(),
+        created: '',
+        content: body ? body : [],
+        format: fileFormat as Contents.FileFormat,
+        mimetype: fileMimeType,
+        size: oldFileContents.ContentLength!,
+        writable: true,
+        type: fileType
+      };
     }
     if (isTruncated) {
       isTruncated = IsTruncated;
