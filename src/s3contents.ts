@@ -287,7 +287,6 @@ export class Drive implements Contents.IDrive {
           path,
           this.registeredFileTypes
         );
-        console.log('GET validate data finish: ', data);
       }
     }
 
@@ -791,7 +790,7 @@ export class Drive implements Contents.IDrive {
     root = PathExt.removeSlash(PathExt.normalize(root));
     // check if directory exists within bucket
     try {
-      checkS3Object(this._s3Client, this._name, root);
+      await checkS3Object(this._s3Client, this._name, root);
       // the directory exists, root is formatted correctly
       return root;
     } catch (error) {

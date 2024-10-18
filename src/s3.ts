@@ -458,7 +458,7 @@ export const renameS3Objects = async (
 
       data = {
         name: newFileName,
-        path: newLocalPath,
+        path: newLocalPath.replace(root, ''),
         last_modified:
           newFileMetadata.LastModified!.toISOString() ??
           new Date().toISOString(),
@@ -476,9 +476,6 @@ export const renameS3Objects = async (
     }
     command.input.ContinuationToken = NextContinuationToken;
   }
-
-  console.log('S3CONTENTS rename objects finish');
-
   return data;
 };
 
