@@ -336,7 +336,6 @@ export class Drive implements Contents.IDrive {
       oldValue: null,
       newValue: data
     });
-
     return data;
   }
 
@@ -430,13 +429,15 @@ export class Drive implements Contents.IDrive {
 
     await checkS3Object(this._s3Client, this._name, this._root, newLocalPath)
       .then(async () => {
-        console.log('File name already exists!');
+        console.log('Name already exists, constructing new name for object.');
         // construct new incremented name
         newFileName = await this.incrementName(newLocalPath, this._name);
       })
       .catch(() => {
         // function throws error as the file name doesn't exist
-        console.log("Name doesn't exist!");
+        console.log(
+          "Name doesn't already exist, so it can be used to rename object."
+        );
       })
       .finally(async () => {
         // once the name has been incremented if needed, proceed with the renaming
@@ -451,12 +452,12 @@ export class Drive implements Contents.IDrive {
         );
       });
 
+    Contents.validateContentsModel(data);
     this._fileChanged.emit({
       type: 'rename',
       oldValue: { path: oldLocalPath },
       newValue: data
     });
-    Contents.validateContentsModel(data);
     return data;
   }
 
@@ -534,12 +535,12 @@ export class Drive implements Contents.IDrive {
       options
     );
 
+    Contents.validateContentsModel(data);
     this._fileChanged.emit({
       type: 'save',
       oldValue: null,
       newValue: data
     });
-    Contents.validateContentsModel(data);
     return data;
   }
 
@@ -605,12 +606,12 @@ export class Drive implements Contents.IDrive {
       this._registeredFileTypes
     );
 
+    Contents.validateContentsModel(data);
     this._fileChanged.emit({
       type: 'new',
       oldValue: null,
       newValue: data
     });
-    Contents.validateContentsModel(data);
     return data;
   }
 
@@ -773,7 +774,7 @@ export class Drive implements Contents.IDrive {
     root = PathExt.removeSlash(PathExt.normalize(root));
     // check if directory exists within bucket
     try {
-      checkS3Object(this._s3Client, this._name, root);
+      await checkS3Object(this._s3Client, this._name, root);
       // the directory exists, root is formatted correctly
       return root;
     } catch (error) {
