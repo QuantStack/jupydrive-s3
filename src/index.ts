@@ -27,7 +27,11 @@ import { Widget } from '@lumino/widgets';
 import { Drive } from './s3contents';
 
 import { DriveIcon } from './icons';
-import { FilenameSearcher, IScore } from '@jupyterlab/ui-components';
+import {
+  FilenameSearcher,
+  IScore,
+  folderIcon
+} from '@jupyterlab/ui-components';
 import { ReadonlyPartialJSONObject, Token } from '@lumino/coreutils';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
 
@@ -163,7 +167,7 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
     // Set attributes when adding the browser to the UI
     defaultBrowser.node.setAttribute('role', 'region');
     defaultBrowser.node.setAttribute('aria-label', 'Drive Browser Section');
-    defaultBrowser.title.icon = DriveIcon;
+    defaultBrowser.title.icon = folderIcon;
 
     // Show the current file browser shortcut in its title.
     const updateBrowserTitle = () => {
