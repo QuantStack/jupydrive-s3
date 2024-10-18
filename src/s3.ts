@@ -215,7 +215,6 @@ export const getS3FileContents = async (
       writable: true,
       type: fileType
     };
-    console.log('S3CONTENTS get file contents finished: ', fileContents);
   }
 
   return data;
@@ -270,14 +269,12 @@ export const createS3Object = async (
       })
     )
     .then(async () => {
-      console.log('S3CONTENTS save finished');
       const newFileInfo = await s3Client.send(
         new HeadObjectCommand({
           Bucket: bucketName,
           Key: path + (PathExt.extname(name) === '' ? '/' : '')
         })
       );
-      console.log('S3CONTENTS save head: ', newFileInfo);
       lastModified = newFileInfo.LastModified?.toISOString();
     })
     .catch(error => {
@@ -341,7 +338,6 @@ export const deleteS3Objects = async (
     }
     command.input.ContinuationToken = NextContinuationToken;
   }
-  console.log('S3CONTENTS DELETE multiple objects finished');
 };
 
 /**
@@ -677,7 +673,6 @@ namespace Private {
         Key: filePath
       })
     );
-    console.log('S3CONTENTS delete file finished');
   }
 
   /**
