@@ -429,6 +429,7 @@ export class Drive implements Contents.IDrive {
 
     await checkS3Object(this._s3Client, this._name, this._root, newLocalPath)
       .then(async () => {
+        console.log('Name already exists, constructing new name for object.');
         // construct new incremented name
         newFileName = await this.incrementName(newLocalPath, this._name);
       })
