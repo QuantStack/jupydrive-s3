@@ -329,7 +329,7 @@ export const deleteS3Objects = async (
       await Promise.all(
         Contents.map(async c => {
           // delete each file with given path
-          await Private.deleteFile(s3Client, bucketName, c.Key!);
+          return Private.deleteFile(s3Client, bucketName, c.Key!);
         })
       );
     }
