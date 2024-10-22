@@ -427,30 +427,22 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     let newFileName = PathExt.basename(newLocalPath);
 
-    await checkS3Object(this._s3Client, this._name, this._root, newLocalPath)
-      .then(async () => {
-        console.log('Name already exists, constructing new name for object.');
-        // construct new incremented name
-        newFileName = await this.incrementName(newLocalPath, this._name);
-      })
-      .catch(() => {
-        // function throws error as the file name doesn't exist
-        console.log(
-          "Name doesn't already exist, so it can be used to rename object."
-        );
-      })
-      .finally(async () => {
-        // once the name has been incremented if needed, proceed with the renaming
-        data = await renameS3Objects(
-          this._s3Client,
-          this._name,
-          this._root,
-          oldLocalPath,
-          newLocalPath,
-          newFileName,
-          this._registeredFileTypes
-        );
-      });
+    try {
+      await checkS3Object(this._s3Client, this._name, this._root, newLocalPath);
+      newFileName = await this.incrementName(newLocalPath, this._name);
+    } catch (error) {
+      // HEAD request failed for this file name, continue, as name doesn't already exist.
+    } finally {
+      data = await renameS3Objects(
+        this._s3Client,
+        this._name,
+        this._root,
+        oldLocalPath,
+        newLocalPath,
+        newFileName,
+        this._registeredFileTypes
+      );
+    }
 
     Contents.validateContentsModel(data);
     this._fileChanged.emit({
