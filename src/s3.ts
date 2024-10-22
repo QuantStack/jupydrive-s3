@@ -444,20 +444,22 @@ export const renameS3Objects = async (
       });
       await Promise.all(promises);
 
-      // retrieve last modified time for new file, does not apply to remaming directory
-      const newFileMetadata = await s3Client.send(
-        new HeadObjectCommand({
-          Bucket: bucketName,
-          Key: newLocalPath
-        })
-      );
+      let lastModifiedDate = new Date().toISOString();
+      if (!isDir) {
+        // retrieve last modified time for new file, does not apply to remaming directory
+        const newFileMetadata = await s3Client.send(
+          new HeadObjectCommand({
+            Bucket: bucketName,
+            Key: newLocalPath
+          })
+        );
+        lastModifiedDate = newFileMetadata.LastModified!.toISOString();
+      }
 
       data = {
         name: newFileName,
         path: newLocalPath.replace(root, ''),
-        last_modified:
-          newFileMetadata.LastModified!.toISOString() ??
-          new Date().toISOString(),
+        last_modified: lastModifiedDate,
         created: '',
         content: body ? body : [],
         format: fileFormat as Contents.FileFormat,
@@ -698,6 +700,7 @@ namespace Private {
         Key: PathExt.join(newPath, remainingFilePath)
       })
     );
+    console.log('copy: ', PathExt.join(newPath, remainingFilePath));
   }
 
   /**
