@@ -1,6 +1,6 @@
 {
     "name": "jupydrive-s3",
-    "version": "0.1.0-a3",
+    "version": "0.1.0-a4",
     "description": "A JupyterLab extension which enables client-side drives access.",
     "keywords": [
         "jupyter",
