@@ -7,7 +7,7 @@ import {
   GetObjectCommand,
   PutObjectCommand,
   HeadObjectCommand,
-  HeadObjectCommandOutput,
+  // HeadObjectCommandOutput,
   S3Client
 } from '@aws-sdk/client-s3';
 
@@ -357,13 +357,49 @@ export const checkS3Object = async (
   bucketName: string,
   root: string,
   path?: string
-): Promise<HeadObjectCommandOutput> => {
-  return await s3Client.send(
-    new HeadObjectCommand({
-      Bucket: bucketName,
-      Key: path ? PathExt.join(root, path) : root + '/' // check whether we are looking at an object or the root
-    })
-  );
+): Promise<void> => {
+  // checking the existance of an S3 object
+  if (path) {
+    try {
+      await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: bucketName,
+          Key: PathExt.join(root, path)
+        })
+      );
+    } catch {
+      Promise.reject();
+    }
+  } else {
+    // checking if the root folder exists
+    const rootInfo = await s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: bucketName,
+        Prefix: root + '/'
+      })
+    );
+
+    if (rootInfo.Contents!.length > 0) {
+      Promise.resolve();
+    } else {
+      Promise.reject();
+    }
+  }
+  // try {
+  //   await s3Client.send(
+  //     new HeadObjectCommand({
+  //       Bucket: bucketName,
+  //       Key: path ? PathExt.join(root, path) : root + '/' // check whether we are looking at an object or the root
+  //     })
+  //   );
+  // } catch (error) {
+  //   await s3Client.send(
+  //     new HeadObjectCommand({
+  //       Bucket: bucketName,
+  //       Key: path ? PathExt.join(root, path) : root + '/.emptyFolderPlaceholder' // check whether we are looking at an object or the root
+  //     })
+  //   );
+  // }
 };
 
 /**
@@ -700,7 +736,6 @@ namespace Private {
         Key: PathExt.join(newPath, remainingFilePath)
       })
     );
-    console.log('copy: ', PathExt.join(newPath, remainingFilePath));
   }
 
   /**
