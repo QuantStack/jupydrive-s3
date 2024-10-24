@@ -7,7 +7,6 @@ import {
   GetObjectCommand,
   PutObjectCommand,
   HeadObjectCommand,
-  // HeadObjectCommandOutput,
   S3Client
 } from '@aws-sdk/client-s3';
 
@@ -358,7 +357,6 @@ export const checkS3Object = async (
   root: string,
   path?: string
 ): Promise<void> => {
-  console.log(path, root);
   // checking the existance of an S3 object
   if (path) {
     await s3Client.send(
