@@ -60,9 +60,7 @@ export class Drive implements Contents.IDrive {
         this._region = region!;
       });
     }
-    this.formatRoot(root ?? '').then((root: string) => {
-      this._root = root;
-    });
+    this._root = root;
     this._registeredFileTypes = {};
   }
 
@@ -128,6 +126,20 @@ export class Drive implements Contents.IDrive {
    */
   set root(root: string) {
     this.formatRoot(root ?? '').then(root => (this._root = root));
+  }
+
+  /**
+   * Get the formatted root checker.
+   */
+  get isRootFormatted(): boolean {
+    return this._isRootFormatted;
+  }
+
+  /**
+   * Set the formatted root checker.
+   */
+  set isRootFormatted(isRootFormatted) {
+    this._isRootFormatted = isRootFormatted;
   }
 
   /**
@@ -256,6 +268,14 @@ export class Drive implements Contents.IDrive {
     options?: Contents.IFetchOptions
   ): Promise<Contents.IModel> {
     path = path.replace(this._name + '/', '');
+
+    // format root the first time contents are retrieved
+    if (!this._isRootFormatted) {
+      this.formatRoot(this._root ?? '').then((root: string) => {
+        this._root = root;
+      });
+      this._isRootFormatted = true;
+    }
 
     // getting the list of files from the root
     if (!path) {
@@ -779,6 +799,7 @@ export class Drive implements Contents.IDrive {
   private _s3Client: S3Client;
   private _name: string = '';
   private _root: string = '';
+  private _isRootFormatted: boolean = false;
   private _provider: string = '';
   private _baseUrl: string = '';
   private _region: string = '';
