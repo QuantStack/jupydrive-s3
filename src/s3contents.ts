@@ -269,7 +269,7 @@ export class Drive implements Contents.IDrive {
   ): Promise<Contents.IModel> {
     path = path.replace(this._name + '/', '');
 
-    // format root the first time this gets called
+    // format root the first time contents are retrieved
     if (!this._isRootFormatted) {
       this.formatRoot(this._root ?? '').then((root: string) => {
         this._root = root;
