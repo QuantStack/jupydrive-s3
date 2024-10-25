@@ -8,7 +8,7 @@
 
 ### Bugs fixed
 
-- Fix root formatting  [#31](https://github.com/QuantStack/jupydrive-s3/pull/31) ([@DenisaCG](https://github.com/DenisaCG))
+- Fix root formatting [#31](https://github.com/QuantStack/jupydrive-s3/pull/31) ([@DenisaCG](https://github.com/DenisaCG))
 
 ### Contributors to this release
 
