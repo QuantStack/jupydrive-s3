@@ -2,6 +2,22 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.1.0a5
+
+([Full Changelog](https://github.com/QuantStack/jupydrive-s3/compare/846580a2eb7a0b8d738c3770e056cb0bf6cd8502...1a21e51771dd64c44c11f010dfd3565c31d744d3))
+
+### Bugs fixed
+
+- Fix root formatting  [#31](https://github.com/QuantStack/jupydrive-s3/pull/31) ([@DenisaCG](https://github.com/DenisaCG))
+
+### Contributors to this release
+
+([GitHub contributors page for this release](https://github.com/QuantStack/jupydrive-s3/graphs/contributors?from=2024-10-23&to=2024-10-25&type=c))
+
+[@DenisaCG](https://github.com/search?q=repo%3AQuantStack%2Fjupydrive-s3+involves%3ADenisaCG+updated%3A2024-10-23..2024-10-25&type=Issues)
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.1.0a4
 
 ([Full Changelog](https://github.com/QuantStack/jupydrive-s3/compare/f14bef6badc6b3b9165bd7b74fe175317a01d8b1...a3e36001f789636258a39347e98e1d993f60aece))
@@ -22,8 +38,6 @@
 ([GitHub contributors page for this release](https://github.com/QuantStack/jupydrive-s3/graphs/contributors?from=2024-08-02&to=2024-10-23&type=c))
 
 [@DenisaCG](https://github.com/search?q=repo%3AQuantStack%2Fjupydrive-s3+involves%3ADenisaCG+updated%3A2024-08-02..2024-10-23&type=Issues)
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 0.1.0a3
 
