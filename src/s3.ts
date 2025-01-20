@@ -402,7 +402,7 @@ export const renameS3Objects = async (
   newLocalPath = PathExt.join(root, newLocalPath);
   oldLocalPath = PathExt.join(root, oldLocalPath);
 
-  const isDir: boolean = PathExt.extname(oldLocalPath) === '';
+  const isDir: boolean = await isDirectory(s3Client, bucketName, oldLocalPath);
 
   if (isDir) {
     newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
@@ -514,7 +514,7 @@ export const copyS3Objects = async (
   registeredFileTypes: IRegisteredFileTypes,
   newBucketName?: string
 ): Promise<Contents.IModel> => {
-  const isDir: boolean = PathExt.extname(path) === '';
+  const isDir: boolean = await isDirectory(s3Client, bucketName, path);
   let suffix: string = '';
 
   path = PathExt.join(root, path);
@@ -640,6 +640,31 @@ export const countS3ObjectNameAppearances = async (
 
   return counter;
 };
+
+/**
+ * This is a helper function that resolves whether a given path
+ * is a directory, because the S3 API does not provide this in listings.
+ */
+export async function isDirectory(
+  s3Client: S3Client,
+  bucketName: string,
+  objectPath: string
+): Promise<boolean> {
+  let isDir: boolean = false;
+
+  // listing contents given a path, to check if it is a directory
+  const command = new ListObjectsV2Command({
+    Bucket: bucketName,
+    Prefix: objectPath + '/'
+  });
+
+  const { Contents } = await s3Client.send(command);
+  if (Contents) {
+    isDir = true;
+  }
+
+  return isDir;
+}
 
 namespace Private {
   /**

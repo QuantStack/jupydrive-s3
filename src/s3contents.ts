@@ -19,7 +19,8 @@ import {
   renameS3Objects,
   listS3Contents,
   IRegisteredFileTypes,
-  getS3FileContents
+  getS3FileContents,
+  isDirectory
 } from './s3';
 
 let data: Contents.IModel = {
@@ -483,7 +484,11 @@ export class Drive implements Contents.IDrive {
    * @param root - The root of the bucket, if it exists.
    */
   async incrementName(localPath: string, bucketName: string) {
-    const isDir: boolean = PathExt.extname(localPath) === '';
+    const isDir: boolean = await isDirectory(
+      this._s3Client,
+      bucketName,
+      localPath
+    );
     let fileExtension: string = '';
     let originalName: string = '';
 
@@ -567,7 +572,11 @@ export class Drive implements Contents.IDrive {
    *  file is copied.
    */
   async incrementCopyName(copiedItemPath: string, bucketName: string) {
-    const isDir: boolean = PathExt.extname(copiedItemPath) === '';
+    const isDir: boolean = await isDirectory(
+      this._s3Client,
+      bucketName,
+      copiedItemPath
+    );
 
     // extracting original file name
     const originalFileName = PathExt.basename(copiedItemPath);
