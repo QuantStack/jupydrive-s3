@@ -287,10 +287,10 @@ export class Drive implements Contents.IDrive {
         this._registeredFileTypes
       );
     } else {
-      const currentPath = PathExt.basename(path);
+      const isDir = await isDirectory(this._s3Client, this._name, path);
 
       // listing contents of a folder
-      if (PathExt.extname(currentPath) === '') {
+      if (isDir === true) {
         data = await listS3Contents(
           this._s3Client,
           this._name,
@@ -345,7 +345,8 @@ export class Drive implements Contents.IDrive {
         name,
         options.path ? PathExt.join(options.path, name) : name,
         '', // create new file with empty body,
-        this.registeredFileTypes
+        this.registeredFileTypes,
+        options.type === 'directory' ? true : false
       );
     } else {
       console.warn('Type of new element is undefined');
@@ -549,6 +550,7 @@ export class Drive implements Contents.IDrive {
       localPath,
       options.content,
       this._registeredFileTypes,
+      true,
       options
     );
 

@@ -106,14 +106,16 @@ export const listS3Contents = async (
           c.Key !== path + '/' &&
           c.Key !== root + '/' + path + '/'
         ) {
-          const fileName = c
-            .Key!.replace(
-              (root ? root + '/' : '') + (path ? path + '/' : ''),
-              ''
-            )
-            .split('/')[0];
+          let fileName = c.Key!.replace(
+            (root ? root + '/' : '') + (path ? path + '/' : ''),
+            ''
+          );
+          const isDir: boolean =
+            fileName === fileName.split('/')[0] ? false : true;
+          fileName = fileName.split('/')[0];
           const [fileType, fileMimeType, fileFormat] = Private.getFileType(
             PathExt.extname(PathExt.basename(fileName)),
+            isDir,
             registeredFileTypes
           );
 
@@ -184,6 +186,7 @@ export const getS3FileContents = async (
     const date: string = response.LastModified!.toISOString();
     const [fileType, fileMimeType, fileFormat] = Private.getFileType(
       PathExt.extname(PathExt.basename(path)),
+      false,
       registeredFileTypes
     );
 
@@ -243,12 +246,14 @@ export const createS3Object = async (
   path: string,
   body: string | Blob,
   registeredFileTypes: IRegisteredFileTypes,
+  isDir: boolean,
   options?: Partial<Contents.IModel>
 ): Promise<Contents.IModel> => {
   path = PathExt.join(root, path);
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
     PathExt.extname(PathExt.basename(name)),
+    isDir,
     registeredFileTypes
   );
 
@@ -403,7 +408,6 @@ export const renameS3Objects = async (
   oldLocalPath = PathExt.join(root, oldLocalPath);
 
   const isDir: boolean = await isDirectory(s3Client, bucketName, oldLocalPath);
-
   if (isDir) {
     newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
   }
@@ -412,6 +416,7 @@ export const renameS3Objects = async (
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
     PathExt.extname(PathExt.basename(newFileName)),
+    isDir,
     registeredFileTypes
   );
 
@@ -560,6 +565,7 @@ export const copyS3Objects = async (
 
   const [fileType, fileMimeType, fileFormat] = Private.getFileType(
     PathExt.extname(PathExt.basename(name)),
+    isDir,
     registeredFileTypes
   );
 
@@ -669,18 +675,22 @@ export async function isDirectory(
 namespace Private {
   /**
    * Helping function to define file type, mimetype and format based on file extension.
-   * @param extension file extension (e.g.: txt, ipynb, csv)
-   * @returns
+   * @param extension: File extension (e.g.: txt, ipynb, csv)
+   * @param isDir: Boolean showing if the object is a directory or a file
+   * @param registeredFileTypes: The list containing all registered file types.
+   * @returns The object type, mimetype and format.
    */
   export function getFileType(
     extension: string,
+    isDir: boolean,
     registeredFileTypes: IRegisteredFileTypes
   ) {
-    let fileType: string = 'text';
-    let fileMimetype: string = 'text/plain';
-    let fileFormat: string = 'text';
+    let fileType: string = isDir === false ? 'text' : 'directory';
+    let fileMimetype: string =
+      isDir === false ? 'text/plain' : 'text/directory';
+    let fileFormat: string = isDir === false ? 'text' : 'json';
 
-    if (registeredFileTypes[extension]) {
+    if (isDir === false && registeredFileTypes[extension]) {
       fileType = registeredFileTypes[extension].fileType;
       fileMimetype = registeredFileTypes[extension].fileMimeTypes[0];
       fileFormat = registeredFileTypes[extension].fileFormat;
