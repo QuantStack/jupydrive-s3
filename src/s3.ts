@@ -402,7 +402,7 @@ export const renameS3Objects = async (
   newLocalPath = PathExt.join(root, newLocalPath);
   oldLocalPath = PathExt.join(root, oldLocalPath);
 
-  const isDir: boolean = await checkDirectory(
+  const isDir: boolean = await isDirectory(
     s3Client,
     bucketName,
     oldLocalPath
@@ -518,7 +518,7 @@ export const copyS3Objects = async (
   registeredFileTypes: IRegisteredFileTypes,
   newBucketName?: string
 ): Promise<Contents.IModel> => {
-  const isDir: boolean = await checkDirectory(s3Client, bucketName, path);
+  const isDir: boolean = await isDirectory(s3Client, bucketName, path);
   let suffix: string = '';
 
   path = PathExt.join(root, path);
@@ -645,7 +645,10 @@ export const countS3ObjectNameAppearances = async (
   return counter;
 };
 
-export async function checkDirectory(
+/**
+ * This is a helper function that resolves whether a given path
+ * is a directory, because the S3 API does not provide this in listings.
+export async function isDirectory(
   s3Client: S3Client,
   bucketName: string,
   objectPath: string

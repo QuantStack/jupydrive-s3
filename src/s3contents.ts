@@ -20,7 +20,7 @@ import {
   listS3Contents,
   IRegisteredFileTypes,
   getS3FileContents,
-  checkDirectory
+  isDirectory
 } from './s3';
 
 let data: Contents.IModel = {
@@ -484,7 +484,7 @@ export class Drive implements Contents.IDrive {
    * @param root - The root of the bucket, if it exists.
    */
   async incrementName(localPath: string, bucketName: string) {
-    const isDir: boolean = await checkDirectory(
+    const isDir: boolean = await isDirectory(
       this._s3Client,
       bucketName,
       localPath
@@ -572,7 +572,7 @@ export class Drive implements Contents.IDrive {
    *  file is copied.
    */
   async incrementCopyName(copiedItemPath: string, bucketName: string) {
-    const isDir: boolean = await checkDirectory(
+    const isDir: boolean = await isDirectory(
       this._s3Client,
       bucketName,
       copiedItemPath
