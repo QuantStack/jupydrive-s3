@@ -83,6 +83,7 @@ export const listS3Contents = async (
   registeredFileTypes: IRegisteredFileTypes,
   path?: string
 ): Promise<Contents.IModel> => {
+  let isFile: boolean = false;
   const fileList: IContentsList = {};
   const prefix = path ? PathExt.join(root, path) : root;
 
@@ -133,25 +134,37 @@ export const listS3Contents = async (
           };
         }
       });
+    } else {
+      isFile = true;
+      data = await getS3FileContents(
+        s3Client,
+        bucketName,
+        root,
+        path!,
+        registeredFileTypes
+      );
     }
+
     if (isTruncated) {
       isTruncated = IsTruncated;
     }
     command.input.ContinuationToken = NextContinuationToken;
   }
 
-  data = {
-    name: path ? PathExt.basename(path) : bucketName,
-    path: path ? path + '/' : bucketName,
-    last_modified: '',
-    created: '',
-    content: Object.values(fileList),
-    format: 'json',
-    mimetype: '',
-    size: undefined,
-    writable: true,
-    type: 'directory'
-  };
+  if (isFile === false) {
+    data = {
+      name: path ? PathExt.basename(path) : bucketName,
+      path: path ? path + '/' : bucketName,
+      last_modified: '',
+      created: '',
+      content: Object.values(fileList),
+      format: 'json',
+      mimetype: '',
+      size: undefined,
+      writable: true,
+      type: 'directory'
+    };
+  }
 
   return data;
 };

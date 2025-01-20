@@ -19,7 +19,6 @@ import {
   renameS3Objects,
   listS3Contents,
   IRegisteredFileTypes,
-  getS3FileContents,
   isDirectory
 } from './s3';
 
@@ -287,28 +286,14 @@ export class Drive implements Contents.IDrive {
         this._registeredFileTypes
       );
     } else {
-      const isDir = await isDirectory(this._s3Client, this._name, path);
-
-      // listing contents of a folder
-      if (isDir === true) {
-        data = await listS3Contents(
-          this._s3Client,
-          this._name,
-          this.root,
-          this.registeredFileTypes,
-          path
-        );
-      }
-      // getting the contents of a specific file
-      else {
-        data = await getS3FileContents(
-          this._s3Client,
-          this._name,
-          this._root,
-          path,
-          this.registeredFileTypes
-        );
-      }
+      // listing the contents of a directory or retriving the contents of a file
+      data = await listS3Contents(
+        this._s3Client,
+        this._name,
+        this.root,
+        this.registeredFileTypes,
+        path
+      );
     }
 
     Contents.validateContentsModel(data);
