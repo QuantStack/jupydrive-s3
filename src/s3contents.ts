@@ -277,24 +277,14 @@ export class Drive implements Contents.IDrive {
       this._isRootFormatted = true;
     }
 
-    // getting the list of files from the root
-    if (!path) {
-      data = await listS3Contents(
-        this._s3Client,
-        this._name,
-        this._root,
-        this._registeredFileTypes
-      );
-    } else {
-      // listing the contents of a directory or retriving the contents of a file
-      data = await listS3Contents(
-        this._s3Client,
-        this._name,
-        this.root,
-        this.registeredFileTypes,
-        path
-      );
-    }
+    // listing the contents of a directory or retriving the contents of a file
+    data = await listS3Contents(
+      this._s3Client,
+      this._name,
+      this.root,
+      this.registeredFileTypes,
+      path
+    );
 
     Contents.validateContentsModel(data);
     return data;
