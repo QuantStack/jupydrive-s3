@@ -402,11 +402,7 @@ export const renameS3Objects = async (
   newLocalPath = PathExt.join(root, newLocalPath);
   oldLocalPath = PathExt.join(root, oldLocalPath);
 
-  const isDir: boolean = await isDirectory(
-    s3Client,
-    bucketName,
-    oldLocalPath
-  );
+  const isDir: boolean = await isDirectory(s3Client, bucketName, oldLocalPath);
 
   if (isDir) {
     newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
@@ -648,6 +644,7 @@ export const countS3ObjectNameAppearances = async (
 /**
  * This is a helper function that resolves whether a given path
  * is a directory, because the S3 API does not provide this in listings.
+ */
 export async function isDirectory(
   s3Client: S3Client,
   bucketName: string,
