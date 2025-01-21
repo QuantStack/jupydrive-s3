@@ -583,26 +583,41 @@ export const copyS3Objects = async (
     registeredFileTypes
   );
 
-  // retrieve information of new file
-  const newFileContents = await s3Client.send(
-    new GetObjectCommand({
-      Bucket: newBucketName ?? bucketName,
-      Key: name + (suffix ? suffix : '')
-    })
-  );
+  try {
+    const newFileContents = await s3Client.send(
+      new GetObjectCommand({
+        Bucket: newBucketName ?? bucketName,
+        Key: name + (suffix ? suffix : '')
+      })
+    );
 
-  data = {
-    name: PathExt.basename(name),
-    path: name,
-    last_modified: newFileContents.LastModified!.toISOString(),
-    created: new Date().toISOString(),
-    content: await newFileContents.Body!.transformToString(),
-    format: fileFormat as Contents.FileFormat,
-    mimetype: fileMimeType,
-    size: newFileContents.ContentLength!,
-    writable: true,
-    type: fileType
-  };
+    data = {
+      name: PathExt.basename(name),
+      path: name,
+      last_modified: newFileContents.LastModified!.toISOString(),
+      created: new Date().toISOString(),
+      content: await newFileContents.Body!.transformToString(),
+      format: fileFormat as Contents.FileFormat,
+      mimetype: fileMimeType,
+      size: newFileContents.ContentLength!,
+      writable: true,
+      type: fileType
+    };
+  } catch {
+    // object directory itself doesn't exist
+    data = {
+      name: PathExt.basename(name),
+      path: name,
+      last_modified: new Date().toISOString(),
+      created: new Date().toISOString(),
+      content: [],
+      format: fileFormat as Contents.FileFormat,
+      mimetype: fileMimeType,
+      size: 0,
+      writable: true,
+      type: fileType
+    };
+  }
 
   return data;
 };
