@@ -674,7 +674,8 @@ export async function isDirectory(
   // listing contents given a path, to check if it is a directory
   const command = new ListObjectsV2Command({
     Bucket: bucketName,
-    Prefix: objectPath + '/'
+    Prefix:
+      objectPath[objectPath.length - 1] === '/' ? objectPath : objectPath + '/'
   });
 
   const { Contents } = await s3Client.send(command);

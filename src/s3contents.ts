@@ -423,10 +423,15 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     let newFileName = PathExt.basename(newLocalPath);
+    const isDir: boolean = await isDirectory(
+      this._s3Client,
+      this._name,
+      oldLocalPath
+    );
 
     try {
       await checkS3Object(this._s3Client, this._name, this._root, newLocalPath);
-      newFileName = await this.incrementName(newLocalPath, this._name);
+      newFileName = await this.incrementName(newLocalPath, this._name, isDir);
     } catch (error) {
       // HEAD request failed for this file name, continue, as name doesn't already exist.
     } finally {
@@ -457,19 +462,14 @@ export class Drive implements Contents.IDrive {
    *
    * @param bucketName - The name of the bucket where content is moved.
    *
-   * @param root - The root of the bucket, if it exists.
+   * @param isDir - Whether the object is a directory or a file.
    */
-  async incrementName(localPath: string, bucketName: string) {
-    const isDir: boolean = await isDirectory(
-      this._s3Client,
-      bucketName,
-      localPath
-    );
+  async incrementName(localPath: string, bucketName: string, isDir: boolean) {
     let fileExtension: string = '';
     let originalName: string = '';
 
     // check if we are dealing with a directory
-    if (isDir) {
+    if (isDir === true) {
       localPath = localPath.substring(0, localPath.length - 1);
       originalName = PathExt.basename(localPath);
     }
@@ -571,7 +571,11 @@ export class Drive implements Contents.IDrive {
       (isDir ? '/' : '');
 
     // getting incremented name of Copy in case of duplicates
-    const incrementedName = await this.incrementName(newFilePath, bucketName);
+    const incrementedName = await this.incrementName(
+      newFilePath,
+      bucketName,
+      isDir
+    );
 
     return incrementedName;
   }
