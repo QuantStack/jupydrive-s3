@@ -404,6 +404,7 @@ export const checkS3Object = async (
  * @param oldLocalPath: The old path of the object.
  * @param newLocalPath: The new path of the object.
  * @param newFileName: The new object name.
+ * @param isDir: Whether the object is a directory or a file.
  * @param registeredFileTypes: The list containing all registered file types.
  *
  * @returns A promise which resolves with the new object contents model.
@@ -415,12 +416,12 @@ export const renameS3Objects = async (
   oldLocalPath: string,
   newLocalPath: string,
   newFileName: string,
+  isDir: boolean,
   registeredFileTypes: IRegisteredFileTypes
 ): Promise<Contents.IModel> => {
   newLocalPath = PathExt.join(root, newLocalPath);
   oldLocalPath = PathExt.join(root, oldLocalPath);
 
-  const isDir: boolean = await isDirectory(s3Client, bucketName, oldLocalPath);
   if (isDir) {
     newLocalPath = newLocalPath.substring(0, newLocalPath.length - 1);
   }

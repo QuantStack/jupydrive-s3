@@ -442,6 +442,7 @@ export class Drive implements Contents.IDrive {
         oldLocalPath,
         newLocalPath,
         newFileName,
+        isDir,
         this._registeredFileTypes
       );
     }
