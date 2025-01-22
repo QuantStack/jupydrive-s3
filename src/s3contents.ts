@@ -447,9 +447,20 @@ export class Drive implements Contents.IDrive {
     options: Contents.ICreateOptions = {}
   ): Promise<Contents.IModel> {
     let newFileName = PathExt.basename(newLocalPath);
+    const isDir: boolean = await isDirectory(
+      this._s3Client,
+      this._name,
+      oldLocalPath
+    );
 
     try {
-      await checkS3Object(this._s3Client, this._name, this._root, newLocalPath);
+      await checkS3Object(
+        this._s3Client,
+        this._name,
+        this._root,
+        newLocalPath,
+        isDir
+      );
       newFileName = await this.incrementName(newLocalPath, this._name);
     } catch (error) {
       // HEAD request failed for this file name, continue, as name doesn't already exist.
@@ -493,8 +504,11 @@ export class Drive implements Contents.IDrive {
     let originalName: string = '';
 
     // check if we are dealing with a directory
-    if (isDir) {
-      localPath = localPath.substring(0, localPath.length - 1);
+    if (isDir === true) {
+      localPath =
+        localPath[localPath.length - 1] === '/'
+          ? localPath.substring(0, localPath.length - 1)
+          : localPath;
       originalName = PathExt.basename(localPath);
     }
     // dealing with a file
