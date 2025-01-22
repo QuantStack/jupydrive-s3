@@ -19,7 +19,6 @@ import {
   renameS3Objects,
   listS3Contents,
   IRegisteredFileTypes,
-  getS3FileContents,
   isDirectory
 } from './s3';
 
@@ -278,38 +277,14 @@ export class Drive implements Contents.IDrive {
       this._isRootFormatted = true;
     }
 
-    // getting the list of files from the root
-    if (!path) {
-      data = await listS3Contents(
-        this._s3Client,
-        this._name,
-        this._root,
-        this._registeredFileTypes
-      );
-    } else {
-      const currentPath = PathExt.basename(path);
-
-      // listing contents of a folder
-      if (PathExt.extname(currentPath) === '') {
-        data = await listS3Contents(
-          this._s3Client,
-          this._name,
-          this.root,
-          this.registeredFileTypes,
-          path
-        );
-      }
-      // getting the contents of a specific file
-      else {
-        data = await getS3FileContents(
-          this._s3Client,
-          this._name,
-          this._root,
-          path,
-          this.registeredFileTypes
-        );
-      }
-    }
+    // listing the contents of a directory or retriving the contents of a file
+    data = await listS3Contents(
+      this._s3Client,
+      this._name,
+      this.root,
+      this.registeredFileTypes,
+      path
+    );
 
     Contents.validateContentsModel(data);
     return data;
@@ -345,7 +320,8 @@ export class Drive implements Contents.IDrive {
         name,
         options.path ? PathExt.join(options.path, name) : name,
         '', // create new file with empty body,
-        this.registeredFileTypes
+        this.registeredFileTypes,
+        options.type === 'directory' ? true : false
       );
     } else {
       console.warn('Type of new element is undefined');
@@ -461,7 +437,7 @@ export class Drive implements Contents.IDrive {
         newLocalPath,
         isDir
       );
-      newFileName = await this.incrementName(newLocalPath, this._name);
+      newFileName = await this.incrementName(newLocalPath, this._name, isDir);
     } catch (error) {
       // HEAD request failed for this file name, continue, as name doesn't already exist.
     } finally {
@@ -472,6 +448,7 @@ export class Drive implements Contents.IDrive {
         oldLocalPath,
         newLocalPath,
         newFileName,
+        isDir,
         this._registeredFileTypes
       );
     }
@@ -492,14 +469,9 @@ export class Drive implements Contents.IDrive {
    *
    * @param bucketName - The name of the bucket where content is moved.
    *
-   * @param root - The root of the bucket, if it exists.
+   * @param isDir - Whether the object is a directory or a file.
    */
-  async incrementName(localPath: string, bucketName: string) {
-    const isDir: boolean = await isDirectory(
-      this._s3Client,
-      bucketName,
-      localPath
-    );
+  async incrementName(localPath: string, bucketName: string, isDir: boolean) {
     let fileExtension: string = '';
     let originalName: string = '';
 
@@ -563,6 +535,7 @@ export class Drive implements Contents.IDrive {
       localPath,
       options.content,
       this._registeredFileTypes,
+      true,
       options
     );
 
@@ -608,7 +581,11 @@ export class Drive implements Contents.IDrive {
       (isDir ? '/' : '');
 
     // getting incremented name of Copy in case of duplicates
-    const incrementedName = await this.incrementName(newFilePath, bucketName);
+    const incrementedName = await this.incrementName(
+      newFilePath,
+      bucketName,
+      isDir
+    );
 
     return incrementedName;
   }
