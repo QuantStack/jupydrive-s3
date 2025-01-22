@@ -373,14 +373,15 @@ export const checkS3Object = async (
   s3Client: S3Client,
   bucketName: string,
   root: string,
-  path?: string
+  path?: string,
+  isDir?: boolean
 ): Promise<void> => {
   // checking the existance of an S3 object
   if (path) {
     await s3Client.send(
       new HeadObjectCommand({
         Bucket: bucketName,
-        Key: PathExt.join(root, path)
+        Key: PathExt.join(root, path) + (isDir === true ? '/' : '')
       })
     );
   }
@@ -657,8 +658,12 @@ export const countS3ObjectNameAppearances = async (
 
     if (Contents) {
       Contents.forEach(c => {
-        const fileName = c
-          .Key!.replace((root ? root + '/' : '') + (path ? path + '/' : ''), '')
+        let fileName =
+          c.Key![c.Key!.length - 1] === '/'
+            ? c.Key!.substring(0, c.Key!.length - 1)
+            : c.Key!;
+        fileName = fileName
+          .replace((root ? root + '/' : '') + (path ? path + '/' : ''), '')
           .split('/')[0];
         if (
           fileName.substring(0, originalName.length + 1).includes(originalName)
