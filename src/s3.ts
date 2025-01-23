@@ -376,23 +376,21 @@ export const checkS3Object = async (
   path?: string,
   isDir?: boolean
 ): Promise<void> => {
-  // checking the existance of an S3 object
-  if (path) {
-    await s3Client.send(
-      new HeadObjectCommand({
-        Bucket: bucketName,
-        Key: PathExt.join(root, path) + (isDir === true ? '/' : '')
-      })
-    );
-  }
-  // checking if the root folder exists
-  else {
-    await s3Client.send(
-      new ListObjectsV2Command({
-        Bucket: bucketName,
-        Prefix: root + '/'
-      })
-    );
+  // checking the existance of an S3 object or if root folder exists
+  const prefix: string = path
+    ? PathExt.join(root, path) + (isDir === true ? '/' : '')
+    : root + '/';
+  const { Contents } = await s3Client.send(
+    new ListObjectsV2Command({
+      Bucket: bucketName,
+      Prefix: prefix,
+      MaxKeys: 1
+    })
+  );
+  if (Contents) {
+    Promise.resolve();
+  } else {
+    Promise.reject();
   }
 };
 
@@ -696,7 +694,8 @@ export async function isDirectory(
   const command = new ListObjectsV2Command({
     Bucket: bucketName,
     Prefix:
-      objectPath[objectPath.length - 1] === '/' ? objectPath : objectPath + '/'
+      objectPath[objectPath.length - 1] === '/' ? objectPath : objectPath + '/',
+    MaxKeys: 1
   });
 
   const { Contents } = await s3Client.send(command);
