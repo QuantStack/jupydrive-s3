@@ -49,7 +49,7 @@ jobs:
         pip uninstall -y "jupydrive_s3" jupyterlab
 
     - name: Upload extension packages
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: extension-artifacts
         path: dist/jupydrive_s3*
@@ -132,7 +132,7 @@ jobs:
 
     - name: Upload Playwright Test report
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: jupydrive_s3-playwright-tests
         path: |
