@@ -390,7 +390,8 @@ export const checkS3Object = async (
     await s3Client.send(
       new ListObjectsV2Command({
         Bucket: bucketName,
-        Prefix: root + '/'
+        Prefix: root + '/',
+        MaxKeys: 1
       })
     );
   }
@@ -696,7 +697,8 @@ export async function isDirectory(
   const command = new ListObjectsV2Command({
     Bucket: bucketName,
     Prefix:
-      objectPath[objectPath.length - 1] === '/' ? objectPath : objectPath + '/'
+      objectPath[objectPath.length - 1] === '/' ? objectPath : objectPath + '/',
+    MaxKeys: 1
   });
 
   const { Contents } = await s3Client.send(command);
