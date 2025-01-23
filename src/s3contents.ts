@@ -336,7 +336,7 @@ export class Drive implements Contents.IDrive {
     return data;
   }
 
-  incrementUntitledName(
+  protected incrementUntitledName(
     contents: Contents.IModel,
     options: Contents.ICreateOptions
   ): string {
@@ -471,7 +471,11 @@ export class Drive implements Contents.IDrive {
    *
    * @param isDir - Whether the object is a directory or a file.
    */
-  async incrementName(localPath: string, bucketName: string, isDir: boolean) {
+  protected async incrementName(
+    localPath: string,
+    bucketName: string,
+    isDir: boolean
+  ) {
     let fileExtension: string = '';
     let originalName: string = '';
 
@@ -558,7 +562,10 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves with the new name when the
    *  file is copied.
    */
-  async incrementCopyName(copiedItemPath: string, bucketName: string) {
+  protected async incrementCopyName(
+    copiedItemPath: string,
+    bucketName: string
+  ) {
     const isDir: boolean = await isDirectory(
       this._s3Client,
       bucketName,
