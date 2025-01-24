@@ -528,6 +528,7 @@ namespace Private {
         !!tracker.currentWidget &&
         Array.from(tracker.currentWidget.selectedItems()).length === 1,
       isEnabled: () =>
+        // Disable directory rename for S3 folders.
         !!tracker.currentWidget &&
         tracker.currentWidget?.selectedItems().next()!.value.type !==
           'directory',
