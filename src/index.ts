@@ -18,6 +18,7 @@ import {
   Uploader
 } from '@jupyterlab/filebrowser';
 import { IStateDB } from '@jupyterlab/statedb';
+import { editIcon } from '@jupyterlab/ui-components';
 
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator } from '@jupyterlab/translation';
@@ -44,6 +45,7 @@ namespace CommandIDs {
   export const copyToAnotherBucket = 'drives:copy-to-another-bucket';
   export const toggleBucketSwitching = 'drives:toggle-bucket-switching-ui';
   export const toggleBrowser = 'filebrowser:toggle-main';
+  export const rename = 'drives:rename';
 }
 
 const FILE_BROWSER_FACTORY = 'DriveBrowser';
@@ -510,6 +512,28 @@ namespace Private {
       selector:
         '.jp-SidePanel .jp-DirListing-content .jp-DirListing-item[data-isDir]',
       rank: 10
+    });
+
+    app.commands.addCommand(CommandIDs.rename, {
+      execute: args => {
+        const widget = tracker.currentWidget;
+
+        if (widget) {
+          return widget.rename();
+        }
+      },
+      isVisible: () =>
+        // So long as this command only handles one file at time, don't show it
+        // if multiple files are selected.
+        !!tracker.currentWidget &&
+        Array.from(tracker.currentWidget.selectedItems()).length === 1,
+      isEnabled: () =>
+        !!tracker.currentWidget &&
+        tracker.currentWidget?.selectedItems().next()!.value.type !==
+          'directory',
+      icon: editIcon.bindprops({ stylesheet: 'menuItem' }),
+      label: 'Rename',
+      mnemonic: 0
     });
   }
 
