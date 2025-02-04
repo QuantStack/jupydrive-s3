@@ -8,6 +8,21 @@
       }
     ]
   },
+  "jupyter.lab.menus": {
+    "context": [
+      {
+        "command": "filebrowser:rename",
+        "selector": ".jp-DirListing-item[data-isdir]",
+        "rank": 5,
+        "disabled": true
+      },
+      {
+        "command": "drives:rename",
+        "selector": ".jp-DirListing-item[data-isdir]",
+        "rank": 5
+      }
+    ]
+  },
   "jupyter.lab.setting-icon": "jupydrive-s3:drive",
   "jupyter.lab.setting-icon-label": "Drive Browser",
   "title": "Jupydrive-s3 Settings",
