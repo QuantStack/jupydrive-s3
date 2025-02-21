@@ -388,9 +388,9 @@ export const checkS3Object = async (
     })
   );
   if (Contents) {
-    Promise.resolve();
+    return Promise.resolve();
   } else {
-    Promise.reject();
+    return Promise.reject();
   }
 };
 
