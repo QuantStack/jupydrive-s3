@@ -2,6 +2,36 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.1.0a6
+
+([Full Changelog](https://github.com/QuantStack/jupydrive-s3/compare/0e42a5371c0cd5fb0cc3d95ef8c89121289374db...c7994feb5d5cb38e10b1cd5fc573a12f693be6b6))
+
+### Enhancements made
+
+- Disable directory rename [#41](https://github.com/QuantStack/jupydrive-s3/pull/41) ([@DenisaCG](https://github.com/DenisaCG))
+- Add limit to object listings in helping functions [#39](https://github.com/QuantStack/jupydrive-s3/pull/39) ([@DenisaCG](https://github.com/DenisaCG))
+- Update `getFileType` function [#35](https://github.com/QuantStack/jupydrive-s3/pull/35) ([@DenisaCG](https://github.com/DenisaCG))
+- Update `eslintIgnore` and `.prettierignore` [#32](https://github.com/QuantStack/jupydrive-s3/pull/32) ([@DenisaCG](https://github.com/DenisaCG))
+
+### Bugs fixed
+
+- Fix check object promise handling [#42](https://github.com/QuantStack/jupydrive-s3/pull/42) ([@DenisaCG](https://github.com/DenisaCG))
+- Fix counting functionality for directory rename [#37](https://github.com/QuantStack/jupydrive-s3/pull/37) ([@DenisaCG](https://github.com/DenisaCG))
+- Update logic for checking object type [#34](https://github.com/QuantStack/jupydrive-s3/pull/34) ([@DenisaCG](https://github.com/DenisaCG))
+
+### Maintenance and upkeep improvements
+
+- Update to `v4` of actions upload and download artifact [#40](https://github.com/QuantStack/jupydrive-s3/pull/40) ([@DenisaCG](https://github.com/DenisaCG))
+- Make increment functions protected [#38](https://github.com/QuantStack/jupydrive-s3/pull/38) ([@DenisaCG](https://github.com/DenisaCG))
+
+### Contributors to this release
+
+([GitHub contributors page for this release](https://github.com/QuantStack/jupydrive-s3/graphs/contributors?from=2024-10-25&to=2025-02-24&type=c))
+
+[@DenisaCG](https://github.com/search?q=repo%3AQuantStack%2Fjupydrive-s3+involves%3ADenisaCG+updated%3A2024-10-25..2025-02-24&type=Issues)
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.1.0a5
 
 ([Full Changelog](https://github.com/QuantStack/jupydrive-s3/compare/846580a2eb7a0b8d738c3770e056cb0bf6cd8502...1a21e51771dd64c44c11f010dfd3565c31d744d3))
@@ -15,8 +45,6 @@
 ([GitHub contributors page for this release](https://github.com/QuantStack/jupydrive-s3/graphs/contributors?from=2024-10-23&to=2024-10-25&type=c))
 
 [@DenisaCG](https://github.com/search?q=repo%3AQuantStack%2Fjupydrive-s3+involves%3ADenisaCG+updated%3A2024-10-23..2024-10-25&type=Issues)
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 0.1.0a4
 
