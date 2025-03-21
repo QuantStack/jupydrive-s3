@@ -14,7 +14,7 @@ export const listObjectsOperation = async (params: {
   maxKeys?: number;
   s3Client?: S3Client;
 }) => {
-  return await params.s3Client?.send(
+  return await params.s3Client!.send(
     new ListObjectsV2Command({
       Bucket: params.bucketName,
       Prefix: params.path,
@@ -28,7 +28,7 @@ export const getObjectOperation = async (params: {
   key: string;
   s3Client?: S3Client;
 }) => {
-  return await params.s3Client?.send(
+  return await params.s3Client!.send(
     new GetObjectCommand({
       Bucket: params.bucketName,
       Key: params.key
@@ -43,7 +43,7 @@ export const createObjectOperation = async (params: {
   cacheControl?: string;
   s3Client?: S3Client;
 }) => {
-  return await params.s3Client?.send(
+  return await params.s3Client!.send(
     new PutObjectCommand({
       Bucket: params.bucketName,
       Key: params.key,
@@ -58,7 +58,7 @@ export const headObjectOperation = async (params: {
   key: string;
   s3Client?: S3Client;
 }) => {
-  return await params.s3Client?.send(
+  return await params.s3Client!.send(
     new HeadObjectCommand({
       Bucket: params.bucketName,
       Key: params.key
@@ -71,7 +71,7 @@ export const deleteObjectOperation = async (params: {
   key: string;
   s3Client?: S3Client;
 }) => {
-  return await params.s3Client?.send(
+  return await params.s3Client!.send(
     new DeleteObjectCommand({
       Bucket: params.bucketName,
       Key: params.key
@@ -85,7 +85,7 @@ export const copyObjectOperation = async (params: {
   key: string;
   s3Client?: S3Client;
 }) => {
-  return await params.s3Client?.send(
+  return await params.s3Client!.send(
     new CopyObjectCommand({
       Bucket: params.bucketName,
       CopySource: params.copySource,

@@ -34,7 +34,15 @@ import {
   folderIcon
 } from '@jupyterlab/ui-components';
 import { ReadonlyPartialJSONObject, Token } from '@lumino/coreutils';
-import { S3ClientConfig } from '@aws-sdk/client-s3';
+import {
+  CopyObjectCommandOutput,
+  DeleteObjectCommandOutput,
+  GetObjectCommandOutput,
+  HeadObjectCommandOutput,
+  ListObjectsV2CommandOutput,
+  PutObjectCommandOutput,
+  S3ClientConfig
+} from '@aws-sdk/client-s3';
 import {
   getObjectOperation,
   listObjectsOperation,
@@ -138,7 +146,7 @@ export interface IS3FileOperations {
     path: string;
     maxKeys?: number;
     s3Client?: any;
-  }) => Promise<any>;
+  }) => Promise<ListObjectsV2CommandOutput>;
 
   /**
    * Function that retrieves contents of a file.
@@ -149,7 +157,7 @@ export interface IS3FileOperations {
     bucketName: string;
     key: string;
     s3Client?: any;
-  }) => Promise<any>;
+  }) => Promise<GetObjectCommandOutput>;
 
   /**
    * Function that creats an object.
@@ -162,7 +170,7 @@ export interface IS3FileOperations {
     body: string | Blob;
     cacheControl?: string;
     s3Client?: any;
-  }) => Promise<any>;
+  }) => Promise<PutObjectCommandOutput>;
 
   /**
    * Function that checks the existance of an object.
@@ -173,7 +181,7 @@ export interface IS3FileOperations {
     bucketName: string;
     key: string;
     s3Client?: any;
-  }) => Promise<any>;
+  }) => Promise<HeadObjectCommandOutput>;
 
   /**
    * Function that deletes an object.
@@ -184,7 +192,7 @@ export interface IS3FileOperations {
     bucketName: string;
     key: string;
     s3Client?: any;
-  }) => Promise<any>;
+  }) => Promise<DeleteObjectCommandOutput>;
 
   /**
    * Function that copies an object to a new location.
@@ -196,7 +204,7 @@ export interface IS3FileOperations {
     copySource: string;
     key: string;
     s3Client?: any;
-  }) => Promise<any>;
+  }) => Promise<CopyObjectCommandOutput>;
 }
 
 /**
