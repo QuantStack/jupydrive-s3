@@ -102,42 +102,40 @@ export const listS3Contents = async (
       });
 
     if (Contents) {
-      Contents.forEach(
-        (c: { Key: string; LastModified: any; Size: number | undefined }) => {
-          // check if we are dealing with the files inside a subfolder
-          if (
-            c.Key !== root + '/' &&
-            c.Key !== path + '/' &&
-            c.Key !== root + '/' + path + '/'
-          ) {
-            let fileName = c.Key!.replace(
-              (root ? root + '/' : '') + (path ? path + '/' : ''),
-              ''
-            );
-            const isDir: boolean =
-              fileName === fileName.split('/')[0] ? false : true;
-            fileName = fileName.split('/')[0];
-            const [fileType, fileMimeType, fileFormat] = Private.getFileType(
-              PathExt.extname(PathExt.basename(fileName)),
-              isDir,
-              registeredFileTypes
-            );
+      Contents.forEach(c => {
+        // check if we are dealing with the files inside a subfolder
+        if (
+          c.Key !== root + '/' &&
+          c.Key !== path + '/' &&
+          c.Key !== root + '/' + path + '/'
+        ) {
+          let fileName = c.Key!.replace(
+            (root ? root + '/' : '') + (path ? path + '/' : ''),
+            ''
+          );
+          const isDir: boolean =
+            fileName === fileName.split('/')[0] ? false : true;
+          fileName = fileName.split('/')[0];
+          const [fileType, fileMimeType, fileFormat] = Private.getFileType(
+            PathExt.extname(PathExt.basename(fileName)),
+            isDir,
+            registeredFileTypes
+          );
 
-            fileList[fileName] = fileList[fileName] ?? {
-              name: fileName,
-              path: path ? PathExt.join(path, fileName) : fileName,
-              last_modified: c.LastModified!.toISOString(),
-              created: '',
-              content: !fileName.split('.')[1] ? [] : null,
-              format: fileFormat as Contents.FileFormat,
-              mimetype: fileMimeType,
-              size: c.Size!,
-              writable: true,
-              type: fileType
-            };
-          }
+          fileList[fileName] = fileList[fileName] ?? {
+            name: fileName,
+            path: path ? PathExt.join(path, fileName) : fileName,
+            last_modified: c.LastModified!.toISOString(),
+            created: '',
+            content: !fileName.split('.')[1] ? [] : null,
+            format: fileFormat as Contents.FileFormat,
+            mimetype: fileMimeType,
+            size: c.Size!,
+            writable: true,
+            type: fileType
+          };
         }
-      );
+      });
     } else {
       isFile = true;
       data = await getS3FileContents(
