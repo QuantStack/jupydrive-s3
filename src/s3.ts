@@ -1,16 +1,12 @@
 import { Contents } from '@jupyterlab/services';
 import { PathExt } from '@jupyterlab/coreutils';
 import {
-  CopyObjectCommand,
-  DeleteObjectCommand,
   ListObjectsV2Command,
   GetObjectCommand,
-  PutObjectCommand,
-  HeadObjectCommand,
   S3Client
 } from '@aws-sdk/client-s3';
-
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { IS3FileOperations } from '.';
 
 export interface IRegisteredFileTypes {
   [fileExtension: string]: {
@@ -78,6 +74,7 @@ export const presignedS3Url = async (
  */
 export const listS3Contents = async (
   s3Client: S3Client,
+  s3FileOperations: IS3FileOperations,
   bucketName: string,
   root: string,
   registeredFileTypes: IRegisteredFileTypes,
@@ -88,56 +85,64 @@ export const listS3Contents = async (
   const prefix = path ? PathExt.join(root, path) : root;
 
   // listing contents of folder
-  const command = new ListObjectsV2Command({
-    Bucket: bucketName,
-    Prefix: prefix + (prefix ? '/' : '')
-  });
+  // const command = new ListObjectsV2Command({
+  //   Bucket: bucketName,
+  //   Prefix: prefix + (prefix ? '/' : '')
+  // });
 
   let isTruncated: boolean | undefined = true;
 
   while (isTruncated) {
-    const { Contents, IsTruncated, NextContinuationToken } =
-      await s3Client.send(command);
+    const { Contents, IsTruncated /*, NextContinuationToken*/ } =
+      // await s3Client.send(command);
+      await s3FileOperations.listObjects({
+        bucketName: bucketName,
+        path: prefix + (prefix ? '/' : ''),
+        s3Client
+      });
 
     if (Contents) {
-      Contents.forEach(c => {
-        // check if we are dealing with the files inside a subfolder
-        if (
-          c.Key !== root + '/' &&
-          c.Key !== path + '/' &&
-          c.Key !== root + '/' + path + '/'
-        ) {
-          let fileName = c.Key!.replace(
-            (root ? root + '/' : '') + (path ? path + '/' : ''),
-            ''
-          );
-          const isDir: boolean =
-            fileName === fileName.split('/')[0] ? false : true;
-          fileName = fileName.split('/')[0];
-          const [fileType, fileMimeType, fileFormat] = Private.getFileType(
-            PathExt.extname(PathExt.basename(fileName)),
-            isDir,
-            registeredFileTypes
-          );
+      Contents.forEach(
+        (c: { Key: string; LastModified: any; Size: number | undefined }) => {
+          // check if we are dealing with the files inside a subfolder
+          if (
+            c.Key !== root + '/' &&
+            c.Key !== path + '/' &&
+            c.Key !== root + '/' + path + '/'
+          ) {
+            let fileName = c.Key!.replace(
+              (root ? root + '/' : '') + (path ? path + '/' : ''),
+              ''
+            );
+            const isDir: boolean =
+              fileName === fileName.split('/')[0] ? false : true;
+            fileName = fileName.split('/')[0];
+            const [fileType, fileMimeType, fileFormat] = Private.getFileType(
+              PathExt.extname(PathExt.basename(fileName)),
+              isDir,
+              registeredFileTypes
+            );
 
-          fileList[fileName] = fileList[fileName] ?? {
-            name: fileName,
-            path: path ? PathExt.join(path, fileName) : fileName,
-            last_modified: c.LastModified!.toISOString(),
-            created: '',
-            content: !fileName.split('.')[1] ? [] : null,
-            format: fileFormat as Contents.FileFormat,
-            mimetype: fileMimeType,
-            size: c.Size!,
-            writable: true,
-            type: fileType
-          };
+            fileList[fileName] = fileList[fileName] ?? {
+              name: fileName,
+              path: path ? PathExt.join(path, fileName) : fileName,
+              last_modified: c.LastModified!.toISOString(),
+              created: '',
+              content: !fileName.split('.')[1] ? [] : null,
+              format: fileFormat as Contents.FileFormat,
+              mimetype: fileMimeType,
+              size: c.Size!,
+              writable: true,
+              type: fileType
+            };
+          }
         }
-      });
+      );
     } else {
       isFile = true;
       data = await getS3FileContents(
         s3Client,
+        s3FileOperations,
         bucketName,
         root,
         path!,
@@ -148,7 +153,7 @@ export const listS3Contents = async (
     if (isTruncated) {
       isTruncated = IsTruncated;
     }
-    command.input.ContinuationToken = NextContinuationToken;
+    // command.input.ContinuationToken = NextContinuationToken;
   }
 
   if (isFile === false) {
@@ -182,18 +187,18 @@ export const listS3Contents = async (
  */
 export const getS3FileContents = async (
   s3Client: S3Client,
+  s3FileOperations: IS3FileOperations,
   bucketName: string,
   root: string,
   path: string,
   registeredFileTypes: IRegisteredFileTypes
 ): Promise<Contents.IModel> => {
   // retrieving contents and metadata of file
-  const command = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: PathExt.join(root, path)
+  const response = await s3FileOperations.getObject({
+    bucketName: bucketName,
+    key: PathExt.join(root, path),
+    s3Client: s3Client
   });
-
-  const response = await s3Client.send(command);
 
   if (response) {
     const date: string = response.LastModified!.toISOString();
@@ -209,7 +214,7 @@ export const getS3FileContents = async (
     if (fileFormat === 'base64' || fileType === 'PDF') {
       fileContents = await response.Body!.transformToByteArray();
       fileContents = btoa(
-        fileContents.reduce(
+        (fileContents as Uint8Array).reduce(
           (data, byte) => data + String.fromCharCode(byte),
           ''
         )
@@ -253,6 +258,7 @@ export const getS3FileContents = async (
  */
 export const createS3Object = async (
   s3Client: S3Client,
+  s3FileOperations: IS3FileOperations,
   bucketName: string,
   root: string,
   name: string,
@@ -276,22 +282,20 @@ export const createS3Object = async (
   }
   let lastModified;
 
-  await s3Client
-    .send(
-      new PutObjectCommand({
-        Bucket: bucketName,
-        Key: path + (PathExt.extname(name) === '' ? '/' : ''),
-        Body: body,
-        CacheControl: options ? 'no-cache' : undefined
-      })
-    )
+  await s3FileOperations
+    .createObject({
+      bucketName: bucketName,
+      key: path + (PathExt.extname(name) === '' ? '/' : ''),
+      body: body,
+      cacheControl: options ? 'no-cache' : undefined,
+      s3Client: s3Client
+    })
     .then(async () => {
-      const newFileInfo = await s3Client.send(
-        new HeadObjectCommand({
-          Bucket: bucketName,
-          Key: path + (PathExt.extname(name) === '' ? '/' : '')
-        })
-      );
+      const newFileInfo = await s3FileOperations.headObject({
+        bucketName: bucketName,
+        key: path + (PathExt.extname(name) === '' ? '/' : ''),
+        s3Client: s3Client
+      });
       lastModified = newFileInfo.LastModified?.toISOString();
     })
     .catch(error => {
@@ -324,6 +328,7 @@ export const createS3Object = async (
  */
 export const deleteS3Objects = async (
   s3Client: S3Client,
+  s3FileOperations: IS3FileOperations,
   bucketName: string,
   root: string,
   path: string
@@ -346,7 +351,12 @@ export const deleteS3Objects = async (
       await Promise.all(
         Contents.map(async c => {
           // delete each file with given path
-          return Private.deleteFile(s3Client, bucketName, c.Key!);
+          return Private.deleteFile(
+            s3Client,
+            s3FileOperations,
+            bucketName,
+            c.Key!
+          );
         })
       );
     }
@@ -371,6 +381,7 @@ export const deleteS3Objects = async (
  */
 export const checkS3Object = async (
   s3Client: S3Client,
+  s3FileOperations: IS3FileOperations,
   bucketName: string,
   root: string,
   path?: string,
@@ -380,13 +391,12 @@ export const checkS3Object = async (
   const prefix: string = path
     ? PathExt.join(root, path) + (isDir === true ? '/' : '')
     : root + '/';
-  const { Contents } = await s3Client.send(
-    new ListObjectsV2Command({
-      Bucket: bucketName,
-      Prefix: prefix,
-      MaxKeys: 1
-    })
-  );
+  const { Contents } = await s3FileOperations.listObjects({
+    bucketName: bucketName,
+    path: prefix,
+    maxKeys: 1,
+    s3Client: s3Client
+  });
   if (Contents) {
     return Promise.resolve();
   } else {
@@ -410,6 +420,7 @@ export const checkS3Object = async (
  */
 export const renameS3Objects = async (
   s3Client: S3Client,
+  s3FileOperations: IS3FileOperations,
   bucketName: string,
   root: string,
   oldLocalPath: string,
@@ -447,12 +458,11 @@ export const renameS3Objects = async (
 
     if (Contents) {
       // retrieve content of file or directory
-      const oldFileContents = await s3Client.send(
-        new GetObjectCommand({
-          Bucket: bucketName,
-          Key: Contents[0].Key!
-        })
-      );
+      const oldFileContents = await s3FileOperations.getObject({
+        bucketName: bucketName,
+        key: Contents[0].Key!,
+        s3Client: s3Client
+      });
       const body = await oldFileContents.Body?.transformToString();
 
       const promises = Contents.map(async c => {
@@ -460,6 +470,7 @@ export const renameS3Objects = async (
         // wait for copy action to resolve, delete original file only if it succeeds
         await Private.copyFile(
           s3Client,
+          s3FileOperations,
           bucketName,
           remainingFilePath,
           oldLocalPath,
@@ -467,6 +478,7 @@ export const renameS3Objects = async (
         );
         return Private.deleteFile(
           s3Client,
+          s3FileOperations,
           bucketName,
           oldLocalPath + remainingFilePath
         );
@@ -476,12 +488,11 @@ export const renameS3Objects = async (
       let lastModifiedDate = new Date().toISOString();
       if (!isDir) {
         // retrieve last modified time for new file, does not apply to remaming directory
-        const newFileMetadata = await s3Client.send(
-          new HeadObjectCommand({
-            Bucket: bucketName,
-            Key: newLocalPath
-          })
-        );
+        const newFileMetadata = await s3FileOperations.headObject({
+          bucketName: bucketName,
+          key: newLocalPath,
+          s3Client: s3Client
+        });
         lastModifiedDate = newFileMetadata.LastModified!.toISOString();
       }
 
@@ -524,6 +535,7 @@ export const renameS3Objects = async (
  */
 export const copyS3Objects = async (
   s3Client: S3Client,
+  s3FileOperations: IS3FileOperations,
   bucketName: string,
   root: string,
   name: string,
@@ -561,6 +573,7 @@ export const copyS3Objects = async (
         // copy each file from old directory to new location
         return Private.copyFile(
           s3Client,
+          s3FileOperations,
           bucketName,
           remainingFilePath,
           path,
@@ -583,12 +596,11 @@ export const copyS3Objects = async (
   );
 
   try {
-    const newFileContents = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: newBucketName ?? bucketName,
-        Key: name + (suffix ? suffix : '')
-      })
-    );
+    const newFileContents = await s3FileOperations.getObject({
+      bucketName: newBucketName ?? bucketName,
+      key: name + (suffix ? suffix : ''),
+      s3Client: s3Client
+    });
 
     data = {
       name: PathExt.basename(name),
@@ -746,15 +758,15 @@ namespace Private {
    */
   export async function deleteFile(
     s3Client: S3Client,
+    s3FileOperations: IS3FileOperations,
     bucketName: string,
     filePath: string
   ) {
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: filePath
-      })
-    );
+    await s3FileOperations.deleteObject({
+      bucketName: bucketName,
+      key: filePath,
+      s3Client: s3Client
+    });
   }
 
   /**
@@ -767,19 +779,19 @@ namespace Private {
    */
   export async function copyFile(
     s3Client: S3Client,
+    s3FileOperations: IS3FileOperations,
     bucketName: string,
     remainingFilePath: string,
     oldPath: string,
     newPath: string,
     newBucketName?: string
   ) {
-    await s3Client.send(
-      new CopyObjectCommand({
-        Bucket: newBucketName ? newBucketName : bucketName,
-        CopySource: PathExt.join(bucketName, oldPath, remainingFilePath),
-        Key: PathExt.join(newPath, remainingFilePath)
-      })
-    );
+    await s3FileOperations.copyObject({
+      bucketName: newBucketName ? newBucketName : bucketName,
+      copySource: PathExt.join(bucketName, oldPath, remainingFilePath),
+      key: PathExt.join(newPath, remainingFilePath),
+      s3Client: s3Client
+    });
   }
 
   /**

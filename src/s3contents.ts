@@ -21,6 +21,7 @@ import {
   IRegisteredFileTypes,
   isDirectory
 } from './s3';
+import { IS3FileOperations } from '.';
 
 let data: Contents.IModel = {
   name: '',
@@ -45,6 +46,7 @@ export class Drive implements Contents.IDrive {
     const { config, name, root } = options;
     this._serverSettings = ServerConnection.makeSettings();
     this._s3Client = new S3Client(config ?? {});
+    this._s3FileOperations = options.fileOperations;
     this._name = name;
     this._baseUrl = URLExt.join(
       (config?.endpoint as string) ?? 'https://s3.amazonaws.com/',
@@ -76,6 +78,20 @@ export class Drive implements Contents.IDrive {
    */
   set s3Client(s3Client: S3Client) {
     this._s3Client = s3Client;
+  }
+
+  /**
+   * The Drive S3 file operations.
+   */
+  get s3FileOperations(): IS3FileOperations {
+    return this._s3FileOperations;
+  }
+
+  /**
+   * The Drive S3 file operations.
+   */
+  set s3FileOperaions(s3FileOperations: IS3FileOperations) {
+    this._s3FileOperations = s3FileOperations;
   }
 
   /**
@@ -280,6 +296,7 @@ export class Drive implements Contents.IDrive {
     // listing the contents of a directory or retriving the contents of a file
     data = await listS3Contents(
       this._s3Client,
+      this._s3FileOperations,
       this._name,
       this.root,
       this.registeredFileTypes,
@@ -304,6 +321,7 @@ export class Drive implements Contents.IDrive {
     // get current list of contents of drive
     const old_data = await listS3Contents(
       this._s3Client,
+      this._s3FileOperations,
       this._name,
       this._root,
       this.registeredFileTypes,
@@ -315,6 +333,7 @@ export class Drive implements Contents.IDrive {
       const name = this.incrementUntitledName(old_data, options);
       data = await createS3Object(
         this._s3Client,
+        this._s3FileOperations,
         this._name,
         this._root,
         name,
@@ -395,7 +414,13 @@ export class Drive implements Contents.IDrive {
    * @returns A promise which resolves when the file is deleted.
    */
   async delete(localPath: string): Promise<void> {
-    await deleteS3Objects(this._s3Client, this._name, this._root, localPath);
+    await deleteS3Objects(
+      this._s3Client,
+      this._s3FileOperations,
+      this._name,
+      this._root,
+      localPath
+    );
 
     this._fileChanged.emit({
       type: 'delete',
@@ -432,6 +457,7 @@ export class Drive implements Contents.IDrive {
     try {
       await checkS3Object(
         this._s3Client,
+        this._s3FileOperations,
         this._name,
         this._root,
         newLocalPath,
@@ -443,6 +469,7 @@ export class Drive implements Contents.IDrive {
     } finally {
       data = await renameS3Objects(
         this._s3Client,
+        this._s3FileOperations,
         this._name,
         this._root,
         oldLocalPath,
@@ -533,6 +560,7 @@ export class Drive implements Contents.IDrive {
 
     data = await createS3Object(
       this._s3Client,
+      this._s3FileOperations,
       this._name,
       this._root,
       fileName,
@@ -617,6 +645,7 @@ export class Drive implements Contents.IDrive {
 
     data = await copyS3Objects(
       this._s3Client,
+      this._s3FileOperations,
       this._name,
       this._root,
       newFileName,
@@ -657,6 +686,7 @@ export class Drive implements Contents.IDrive {
 
     data = await copyS3Objects(
       this._s3Client,
+      this._s3FileOperations,
       this._name,
       this._root,
       newFileName,
@@ -793,7 +823,12 @@ export class Drive implements Contents.IDrive {
     root = PathExt.removeSlash(PathExt.normalize(root));
     // check if directory exists within bucket
     try {
-      await checkS3Object(this._s3Client, this._name, root);
+      await checkS3Object(
+        this._s3Client,
+        this._s3FileOperations,
+        this._name,
+        root
+      );
       // the directory exists, root is formatted correctly
       return root;
     } catch (error) {
@@ -804,6 +839,7 @@ export class Drive implements Contents.IDrive {
 
   private _serverSettings: ServerConnection.ISettings;
   private _s3Client: S3Client;
+  private _s3FileOperations: IS3FileOperations;
   private _name: string = '';
   private _root: string = '';
   private _isRootFormatted: boolean = false;
@@ -837,6 +873,11 @@ export namespace Drive {
      * Path to directory from drive, which acts as root.
      */
     root: string;
+
+    /**
+     * The s3 file operations provider.
+     */
+    fileOperations: IS3FileOperations;
 
     /**
      * The server settings for the server.

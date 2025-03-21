@@ -35,6 +35,14 @@ import {
 } from '@jupyterlab/ui-components';
 import { ReadonlyPartialJSONObject, Token } from '@lumino/coreutils';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
+import {
+  getObjectOperation,
+  listObjectsOperation,
+  createObjectOperation,
+  headObjectOperation,
+  deleteObjectOperation,
+  copyObjectOperation
+} from './s3FileOperations';
 
 /**
  * The command IDs used by the filebrowser plugin.
@@ -117,18 +125,126 @@ const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
 };
 
 /**
+ * An interface containing the S3 file operations provider.
+ */
+export interface IS3FileOperations {
+  /**
+   * Function that returns the list of objects give a path.
+   *
+   * @returns an object of type ListObjectsV2Output.
+   */
+  listObjects: (params: {
+    bucketName: string;
+    path: string;
+    maxKeys?: number;
+    s3Client?: any;
+  }) => Promise<any>;
+
+  /**
+   * Function that retrieves contents of a file.
+   *
+   * @returns an object of type GetObjectCommandOutput.
+   */
+  getObject: (params: {
+    bucketName: string;
+    key: string;
+    s3Client?: any;
+  }) => Promise<any>;
+
+  /**
+   * Function that creats an object.
+   *
+   * @returns an object of type PutObjectCommandOutput.
+   */
+  createObject: (params: {
+    bucketName: string;
+    key: string;
+    body: string | Blob;
+    cacheControl?: string;
+    s3Client?: any;
+  }) => Promise<any>;
+
+  /**
+   * Function that checks the existance of an object.
+   *
+   * @returns an object of type HeadObjectCommandOutput.
+   */
+  headObject: (params: {
+    bucketName: string;
+    key: string;
+    s3Client?: any;
+  }) => Promise<any>;
+
+  /**
+   * Function that deletes an object.
+   *
+   * @returns an object of type DeleteObjectCommandOutput.
+   */
+  deleteObject: (params: {
+    bucketName: string;
+    key: string;
+    s3Client?: any;
+  }) => Promise<any>;
+
+  /**
+   * Function that copies an object to a new location.
+   *
+   * @returns an object of type DeleteObjectCommandOutput.
+   */
+  copyObject: (params: {
+    bucketName: string;
+    copySource: string;
+    key: string;
+    s3Client?: any;
+  }) => Promise<any>;
+}
+
+/**
+ * A token for a plugin that provides the S3 file operations provider.
+ */
+export const IS3FileOperations = new Token<IS3FileOperations>(
+  'jupydrive-s3:file-operations-provider'
+);
+
+/**
+ * The file operations provider for the file browser.
+ */
+const fileOperationsProvider: JupyterFrontEndPlugin<IS3FileOperations> = {
+  id: 'jupydrive-s3:file-operations-provider',
+  description: 'The file operations provider for the file browser.',
+  provides: IS3FileOperations,
+  activate: (): IS3FileOperations => {
+    return {
+      listObjects: listObjectsOperation,
+      getObject: getObjectOperation,
+      createObject: createObjectOperation,
+      headObject: headObjectOperation,
+      deleteObject: deleteObjectOperation,
+      copyObject: copyObjectOperation
+    };
+  }
+};
+
+/**
  * The default file browser factory provider.
  */
 const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
   id: 'jupydrive-s3:default-file-browser',
   description: 'The default file browser factory provider',
   provides: IDefaultFileBrowser,
-  requires: [IFileBrowserFactory, IS3Auth, IStateDB, ISettingRegistry],
+  requires: [
+    IFileBrowserFactory,
+    IS3Auth,
+    IS3FileOperations,
+    IStateDB,
+    ISettingRegistry
+  ],
   optional: [IRouter, JupyterFrontEnd.ITreeResolver, ILabShell],
   activate: async (
     app: JupyterFrontEnd,
     fileBrowserFactory: IFileBrowserFactory,
     s3auth: IS3Auth,
+    s3fileOperations: IS3FileOperations,
     state: IStateDB,
     settings: ISettingRegistry,
     router: IRouter | null,
@@ -141,7 +257,8 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
     const S3Drive = new Drive({
       name: auth.bucket,
       root: auth.root,
-      config: auth.config
+      config: auth.config,
+      fileOperations: s3fileOperations
     });
 
     app.serviceManager.contents.addDrive(S3Drive);
@@ -298,6 +415,7 @@ const toolbarFileBrowser: JupyterFrontEndPlugin<void> = {
  */
 const plugins: JupyterFrontEndPlugin<any>[] = [
   authFileBrowser,
+  fileOperationsProvider,
   defaultFileBrowser,
   toolbarFileBrowser
 ];
