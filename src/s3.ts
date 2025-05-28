@@ -807,7 +807,7 @@ namespace Private {
     ) {
       // transform base64 encoding to a utf-8 array for saving and storing in S3 bucket
       const byteCharacters = atob(options.content);
-      const byteArrays = [];
+      const byteArrays: Uint8Array[] = [];
 
       for (let offset = 0; offset < byteCharacters.length; offset += 512) {
         const slice = byteCharacters.slice(offset, offset + 512);
