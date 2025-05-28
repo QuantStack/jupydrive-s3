@@ -79,6 +79,20 @@ export class Drive implements Contents.IDrive {
   }
 
   /**
+   * The S3 config.
+   */
+  get config(): S3ClientConfig {
+    return this._config;
+  }
+
+  /**
+   * The S3 config.
+   */
+  set config(config: S3ClientConfig) {
+    this._config = config;
+    this._s3Client = new S3Client(config);
+  }
+  /**
    * The Drive base URL
    */
   get baseUrl(): string {
@@ -806,6 +820,7 @@ export class Drive implements Contents.IDrive {
   private _s3Client: S3Client;
   private _name: string = '';
   private _root: string = '';
+  private _config: S3ClientConfig = '';
   private _isRootFormatted: boolean = false;
   private _provider: string = '';
   private _baseUrl: string = '';
