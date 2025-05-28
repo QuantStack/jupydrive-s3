@@ -19,15 +19,10 @@ import {
 } from '@jupyterlab/filebrowser';
 import { IStateDB } from '@jupyterlab/statedb';
 import { editIcon } from '@jupyterlab/ui-components';
-
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator } from '@jupyterlab/translation';
-
 import { CommandRegistry } from '@lumino/commands';
 import { Widget } from '@lumino/widgets';
-import { Drive } from './s3contents';
-
-import { DriveIcon } from './icons';
 import {
   FilenameSearcher,
   IScore,
@@ -35,6 +30,8 @@ import {
 } from '@jupyterlab/ui-components';
 import { ReadonlyPartialJSONObject, Token } from '@lumino/coreutils';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
+import { Drive } from './s3contents';
+import { DriveIcon } from './icons';
 
 /**
  * The command IDs used by the filebrowser plugin.
