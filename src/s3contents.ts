@@ -21,6 +21,8 @@ import {
   IRegisteredFileTypes,
   isDirectory
 } from './s3';
+import { ISecretsManager } from 'jupyter-secrets-manager';
+import { AUTH_FILEBROWSER_ID } from '.';
 
 let data: Contents.IModel = {
   name: '',
@@ -44,7 +46,23 @@ export class Drive implements Contents.IDrive {
   constructor(options: Drive.IOptions) {
     const { config, name, root } = options;
     this._serverSettings = ServerConnection.makeSettings();
-    this._s3Client = new S3Client(config ?? {});
+    const s3Config = { ...config };
+    if (options.secretsManager && options.token) {
+      // Retrive secrets and set up S3 client.
+      Object.entries(s3Config!.credentials!).forEach(([key, _]: any) => {
+        options
+          .secretsManager!.get(
+            options.token!,
+            AUTH_FILEBROWSER_ID,
+            AUTH_FILEBROWSER_ID + '::' + key
+          )
+          .then((secret: any) => {
+            s3Config!.credentials![key] = secret.value;
+          })
+          .catch(() => console.error('Error occured retrieving secret: ', key));
+      });
+    }
+    this._s3Client = new S3Client(s3Config ?? {});
     this._name = name;
     this._baseUrl = URLExt.join(
       (config?.endpoint as string) ?? 'https://s3.amazonaws.com/',
@@ -852,6 +870,16 @@ export namespace Drive {
      * Path to directory from drive, which acts as root.
      */
     root: string;
+
+    /**
+     * Secrets manager used for config.
+     */
+    secretsManager?: ISecretsManager;
+
+    /**
+     * Token used together with the secrets manager.
+     */
+    token?: symbol;
 
     /**
      * The server settings for the server.
