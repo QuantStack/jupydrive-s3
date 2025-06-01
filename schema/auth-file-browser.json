@@ -1,7 +1,7 @@
 {
   "jupyter.lab.setting-icon": "jupydrive-s3:drive",
   "jupyter.lab.setting-icon-label": "Drive Browser",
-  "title": "Jupydrive-s3 Credentials Provider",
+  "title": "Credentials Provider",
   "description": "jupydrive-s3 credentials provider.",
   "type": "object",
   "properties": {
