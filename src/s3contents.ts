@@ -46,6 +46,7 @@ export class Drive implements Contents.IDrive {
   constructor(options: Drive.IOptions) {
     const { config, name, root } = options;
     this._serverSettings = ServerConnection.makeSettings();
+
     const s3Config = { ...config };
     if (options.secretsManager && options.token) {
       // Retrive secrets and set up S3 client.
@@ -61,8 +62,11 @@ export class Drive implements Contents.IDrive {
           })
           .catch(() => console.error('Error occured retrieving secret: ', key));
       });
+      // Delete token used by secrets manager.
+      delete options.token;
     }
     this._s3Client = new S3Client(s3Config ?? {});
+
     this._name = name;
     this._baseUrl = URLExt.join(
       (config?.endpoint as string) ?? 'https://s3.amazonaws.com/',
