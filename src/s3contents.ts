@@ -57,7 +57,7 @@ export class Drive implements Contents.IDrive {
     }
     const s3Config = { ...config };
     if (secretsManager && token) {
-      // Retrive secrets and set up S3 client.
+      // Retrieve secrets and set up S3 client.
       Object.entries(s3Config!.credentials!).forEach(([key, _]: any) => {
         secretsManager!
           .get(token, AUTH_FILEBROWSER_ID, AUTH_FILEBROWSER_ID + '::' + key)
