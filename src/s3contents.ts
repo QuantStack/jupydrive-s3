@@ -64,7 +64,7 @@ export class Drive implements Contents.IDrive {
           .then((secret: any) => {
             s3Config!.credentials![key] = secret.value;
           })
-          .catch(() => console.error('Error occured retrieving secret: ', key));
+          .catch(() => console.error('Error occurred retrieving secret: ', key));
       });
     }
     this._s3Client = new S3Client(s3Config ?? {});
