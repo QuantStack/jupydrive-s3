@@ -21,6 +21,8 @@ import {
   IRegisteredFileTypes,
   isDirectory
 } from './s3';
+import { ISecretsManager } from 'jupyter-secrets-manager';
+import { AUTH_FILEBROWSER_ID } from '.';
 
 let data: Contents.IModel = {
   name: '',
@@ -42,9 +44,33 @@ export class Drive implements Contents.IDrive {
    * @param options - The options used to initialize the object.
    */
   constructor(options: Drive.IOptions) {
-    const { config, name, root } = options;
+    const { config, name, root, secretsManager, token } = options;
     this._serverSettings = ServerConnection.makeSettings();
-    this._s3Client = new S3Client(config ?? {});
+
+    if (secretsManager) {
+      this._secretsManager = secretsManager;
+    }
+    if (token) {
+      Private.setToken(token);
+      // Delete token used by secrets manager.
+      delete options.token;
+    }
+    const s3Config = { ...config };
+    if (secretsManager && token) {
+      // Retrieve secrets and set up S3 client.
+      Object.entries(s3Config!.credentials!).forEach(([key, _]: any) => {
+        secretsManager!
+          .get(token, AUTH_FILEBROWSER_ID, AUTH_FILEBROWSER_ID + '::' + key)
+          .then((secret: any) => {
+            s3Config!.credentials![key] = secret.value;
+          })
+          .catch(() =>
+            console.error('Error occurred retrieving secret: ', key)
+          );
+      });
+    }
+    this._s3Client = new S3Client(s3Config ?? {});
+
     this._name = name;
     this._baseUrl = URLExt.join(
       (config?.endpoint as string) ?? 'https://s3.amazonaws.com/',
@@ -78,6 +104,20 @@ export class Drive implements Contents.IDrive {
     this._s3Client = s3Client;
   }
 
+  /**
+   * The S3 config.
+   */
+  get config(): S3ClientConfig {
+    return this._config;
+  }
+
+  /**
+   * The S3 config.
+   */
+  set config(config: S3ClientConfig) {
+    this._config = config;
+    this._s3Client = new S3Client(config);
+  }
   /**
    * The Drive base URL
    */
@@ -231,6 +271,9 @@ export class Drive implements Contents.IDrive {
   dispose(): void {
     if (this.isDisposed) {
       return;
+    }
+    if (this._secretsManager) {
+      this._secretsManager.detachAll(Private.getToken(), AUTH_FILEBROWSER_ID);
     }
     this._isDisposed = true;
     this._disposed.emit();
@@ -806,6 +849,7 @@ export class Drive implements Contents.IDrive {
   private _s3Client: S3Client;
   private _name: string = '';
   private _root: string = '';
+  private _config: S3ClientConfig = '';
   private _isRootFormatted: boolean = false;
   private _provider: string = '';
   private _baseUrl: string = '';
@@ -815,6 +859,7 @@ export class Drive implements Contents.IDrive {
   private _isDisposed: boolean = false;
   private _disposed = new Signal<this, void>(this);
   private _registeredFileTypes: IRegisteredFileTypes = {};
+  private _secretsManager: ISecretsManager | undefined;
 }
 
 export namespace Drive {
@@ -839,8 +884,39 @@ export namespace Drive {
     root: string;
 
     /**
+     * Secrets manager used for config.
+     */
+    secretsManager?: ISecretsManager;
+
+    /**
+     * Token used together with the secrets manager.
+     */
+    token?: symbol;
+
+    /**
      * The server settings for the server.
      */
     serverSettings?: ServerConnection.ISettings;
+  }
+}
+
+namespace Private {
+  /**
+   * The secrets manager token.
+   */
+  let token: symbol;
+
+  /**
+   * Set secrets manager token.
+   */
+  export function setToken(value: symbol): void {
+    token = value;
+  }
+
+  /**
+   * Get secrets manager token.
+   */
+  export function getToken(): symbol {
+    return token;
   }
 }

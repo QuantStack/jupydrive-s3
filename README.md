@@ -24,6 +24,12 @@ As the extension works in the browser, the `S3` buckets need to have certain `CO
 
 More information about `CORS` [here](https://docs.aws.amazon.com/AmazonS3/latest/userguide/cors.html) and the various ways to configure it [here](https://docs.aws.amazon.com/AmazonS3/latest/userguide/enabling-cors-examples.html).
 
+### Set up credentials
+
+User credentials can be set by accessing `Settings` -> `Settings Editor` -> `Credentials Provider`. Users need to offer a bucket name, region, endpoint, access key ID and secret access key, as well as optionally a path to the folder within the bucket that should act as root.
+
+The extension uses [`jupyter-secrets-manager`](https://github.com/jupyterlab-contrib/jupyter-secrets-manager) to deal with the secret input fields.
+
 ## Requirements
 
 - JupyterLab >= 4.2.5

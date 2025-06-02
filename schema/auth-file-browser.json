@@ -1,0 +1,45 @@
+{
+  "jupyter.lab.setting-icon": "jupydrive-s3:drive",
+  "jupyter.lab.setting-icon-label": "Drive Browser",
+  "title": "Credentials Provider",
+  "description": "jupydrive-s3 credentials provider.",
+  "type": "object",
+  "properties": {
+    "bucket": {
+      "type": "string",
+      "title": "Bucket",
+      "description": "The S3 bucket name.",
+      "default": "jupyter-drives-test-bucket-1"
+    },
+    "root": {
+      "type": "string",
+      "title": "Custom root path",
+      "description": "Path to folder within bucket, that should act as root. Defaults to bucket's top-level directory.",
+      "default": ""
+    },
+    "endpoint": {
+      "type": "string",
+      "title": "S3 endpoint",
+      "description": "The custom S3 endpoint (e.g. : https://s3.eu-north-1.amazonaws.com).",
+      "default": "https://example.com/s3"
+    },
+    "region": {
+      "type": "string",
+      "title": "Bucket region",
+      "description": "The S3 bucket region.",
+      "default": "eu-north-1"
+    },
+    "accessKeyId": {
+      "type": "string",
+      "title": "Access key ID",
+      "description": "The access key id used to access S3 bucket.",
+      "default": ""
+    },
+    "secretAccessKey": {
+      "type": "string",
+      "title": "Secret access key",
+      "default": ""
+    }
+  },
+  "additionalProperties": false
+}

@@ -19,15 +19,10 @@ import {
 } from '@jupyterlab/filebrowser';
 import { IStateDB } from '@jupyterlab/statedb';
 import { editIcon } from '@jupyterlab/ui-components';
-
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator } from '@jupyterlab/translation';
-
 import { CommandRegistry } from '@lumino/commands';
 import { Widget } from '@lumino/widgets';
-import { Drive } from './s3contents';
-
-import { DriveIcon } from './icons';
 import {
   FilenameSearcher,
   IScore,
@@ -35,6 +30,9 @@ import {
 } from '@jupyterlab/ui-components';
 import { ReadonlyPartialJSONObject, Token } from '@lumino/coreutils';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
+import { Drive } from './s3contents';
+import { DriveIcon } from './icons';
+import { SecretsManager, ISecretsManager } from 'jupyter-secrets-manager';
 
 /**
  * The command IDs used by the filebrowser plugin.
@@ -76,9 +74,11 @@ const DRIVE_STATE_ID = 'jupydrive-s3:drive-name-id';
  */
 export interface IS3Auth {
   factory: () => Promise<{
-    bucket: string;
+    name: string;
     root: string;
     config: S3ClientConfig;
+    secretsManager?: ISecretsManager;
+    token?: symbol;
   }>;
 }
 
@@ -88,33 +88,145 @@ export interface IS3Auth {
 export const IS3Auth = new Token<IS3Auth>('jupydrive-s3:auth-file-browser');
 
 /**
+ * Authentification file browser ID.
+ */
+export const AUTH_FILEBROWSER_ID = 'jupydrive-s3:auth-file-browser';
+
+/**
  * The auth/credentials provider for the file browser.
  */
-const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = {
-  id: 'jupydrive-s3:auth-file-browser',
-  description: 'The default file browser auth/credentials provider',
-  provides: IS3Auth,
-  activate: (): IS3Auth => {
-    return {
-      factory: async () => ({
-        bucket: process.env.JP_S3_BUCKET ?? 'jupyter-drives-test-bucket-1',
-        root: process.env.JP_S3_ROOT ?? '',
-        config: {
-          forcePathStyle: true,
-          endpoint: process.env.JP_S3_ENDPOINT ?? 'https://example.com/s3',
-          region: process.env.JP_S3_REGION ?? 'eu-west-1',
-          credentials: {
-            accessKeyId:
-              process.env.JP_S3_ACCESS_KEY_ID ?? 'abcdefghijklmnopqrstuvwxyz',
-            secretAccessKey:
-              process.env.JP_S3_SECRET_ACCESS_KEY ??
-              'SECRET123456789abcdefghijklmnopqrstuvwxyz'
-          }
+const authFileBrowser: JupyterFrontEndPlugin<IS3Auth> = SecretsManager.sign(
+  AUTH_FILEBROWSER_ID,
+  token => ({
+    id: 'jupydrive-s3:auth-file-browser',
+    description: 'The default file browser auth/credentials provider',
+    requires: [ISettingRegistry, ISecretsManager],
+    provides: IS3Auth,
+    activate: (
+      app: JupyterFrontEnd,
+      settings: ISettingRegistry,
+      secretsManager: ISecretsManager
+    ): IS3Auth => {
+      const secretFields: string[] = ['accessKeyId', 'secretAccessKey'];
+
+      function loadCredentials(setting: ISettingRegistry.ISettings) {
+        const bucket = setting.get('bucket').composite as string;
+        const root = setting.get('root').composite as string;
+        const endpoint = setting.get('endpoint').composite as string;
+        const region = setting.get('region').composite as string;
+
+        secretFields.forEach((key: string) => {
+          const secretValue = setting.get(key).composite as string;
+          // Save secret to secret manager.
+          secretsManager.set(
+            token,
+            AUTH_FILEBROWSER_ID,
+            AUTH_FILEBROWSER_ID + '::' + key,
+            {
+              namespace: AUTH_FILEBROWSER_ID,
+              id: AUTH_FILEBROWSER_ID + '::' + key,
+              value: secretValue
+            }
+          );
+        });
+
+        return {
+          name: bucket,
+          root: root,
+          config: {
+            forcePathStyle: true,
+            endpoint: endpoint,
+            region: region,
+            credentials: {
+              accessKeyId: '***',
+              secretAccessKey: '***'
+            }
+          },
+          secretsManager: secretsManager,
+          token: token
+        };
+      }
+
+      const attachSecretInput = (key: string) => {
+        const input = document.getElementById(
+          'jp-SettingsEditor-jupydrive-s3:auth-file-browser_' + key
+        ) as HTMLInputElement;
+        if (input) {
+          input.type = 'password';
+          secretsManager.attach(
+            token,
+            AUTH_FILEBROWSER_ID,
+            AUTH_FILEBROWSER_ID + '::' + key,
+            input
+          );
+        } else {
+          setTimeout(() => attachSecretInput(key), 300);
         }
-      })
-    };
-  }
-};
+      };
+
+      // Watch for DOM changes to make sure secret inputs are attached.
+      const observer = new MutationObserver(() => {
+        secretFields.forEach((key: string) => attachSecretInput(key));
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+
+      const getInitalSettings = async () => {
+        // Read the inital credentials settings.
+        const setting = await settings.load(authFileBrowser.id);
+        const initial = loadCredentials(setting);
+        if (initial.name !== '') {
+          return initial;
+        } else {
+          return null;
+        }
+      };
+
+      // Wait for the application to be restored and for the
+      // settings of credentials to be loaded.
+      Promise.all([app.restored, settings.load(authFileBrowser.id)]).then(
+        ([_, settingCredentials]) => {
+          // Listen for the plugin setting changes using Signal.
+          settingCredentials.changed.connect(() => {
+            const s3Config = loadCredentials(settingCredentials);
+
+            // Connect to drive using new config.
+            const S3Drive = new Drive({ ...s3Config, secretsManager, token });
+            app.serviceManager.contents.addDrive(S3Drive);
+          });
+        }
+      );
+
+      return {
+        factory: async () => {
+          return (
+            (await getInitalSettings()) ?? {
+              name: process.env.JP_S3_BUCKET ?? 'jupyter-drives-test-bucket-1',
+              root: process.env.JP_S3_ROOT ?? '',
+              config: {
+                forcePathStyle: true,
+                endpoint:
+                  process.env.JP_S3_ENDPOINT ?? 'https://example.com/s3',
+                region: process.env.JP_S3_REGION ?? 'eu-west-1',
+                credentials: {
+                  accessKeyId:
+                    process.env.JP_S3_ACCESS_KEY_ID ??
+                    'abcdefghijklmnopqrstuvwxyz',
+                  secretAccessKey:
+                    process.env.JP_S3_SECRET_ACCESS_KEY ??
+                    'SECRET123456789abcdefghijklmnopqrstuvwxyz'
+                }
+              }
+            }
+          );
+        }
+      };
+    }
+  })
+);
 
 /**
  * The default file browser factory provider.
@@ -139,9 +251,11 @@ const defaultFileBrowser: JupyterFrontEndPlugin<IDefaultFileBrowser> = {
     const auth = await s3auth.factory();
     // create S3 drive
     const S3Drive = new Drive({
-      name: auth.bucket,
+      name: auth.name,
       root: auth.root,
-      config: auth.config
+      config: auth.config,
+      secretsManager: auth.secretsManager,
+      token: auth.token
     });
 
     app.serviceManager.contents.addDrive(S3Drive);
