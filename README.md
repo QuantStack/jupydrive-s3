@@ -30,6 +30,9 @@ User credentials can be set by accessing `Settings` -> `Settings Editor` -> `Cre
 
 The extension uses [`jupyter-secrets-manager`](https://github.com/jupyterlab-contrib/jupyter-secrets-manager) to deal with the secret input fields.
 
+> [!NOTE]
+> The extension uses the Settings Registry to allow users to set their credentials when not in development mode. As a result, secret values may still be accessible to other extensions. Be aware of the associated security risks.
+
 ## Requirements
 
 - JupyterLab >= 4.2.5
